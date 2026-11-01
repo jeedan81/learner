@@ -110,3 +110,31 @@ body{background:var(--paper)}
 }
 .masonry > .card{margin-bottom:14px}
 @media (hover:hover){.card[data-t]:hover,.gcard:hover,.prow:hover{border-color:var(--gc,var(--accent))}}
+
+/* 집중 음악(js/music.js): 앱바 🎵 버튼과 곡 목록 창 */
+.music-btn{flex:none}
+.music-btn.on svg{animation:mpPulse 1.6s ease-in-out infinite}
+@keyframes mpPulse{50%{transform:scale(1.12)}}
+.music-panel{position:fixed;z-index:20;top:calc(env(safe-area-inset-top,0px) + 60px);right:max(12px,env(safe-area-inset-right,0px));
+  width:min(360px,calc(100vw - 24px));max-height:calc(100vh - 150px);overflow:auto;padding:14px;display:grid;gap:10px}
+.music-panel[hidden]{display:none}
+.mp-head{display:flex;align-items:center;justify-content:space-between;font-size:16px}
+.mp-x{width:32px;height:32px;border-radius:50%;color:var(--muted)}
+.mp-now{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.mp-list{display:grid;gap:6px}
+.mp-item{display:grid;grid-template-columns:32px 1fr 24px;align-items:center;gap:8px;text-align:left;padding:8px 10px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+.mp-item .em{font-size:22px;text-align:center}
+.mp-item b{display:block;font-size:14.5px}
+.mp-item small{display:block;font-size:12px;color:var(--muted);line-height:1.35}
+.mp-item .pp{color:var(--muted);text-align:center}
+.mp-item.on{background:var(--soft);border-color:var(--accent)}
+.mp-item.on .pp{color:var(--accent)}
+.mp-foot{display:flex;align-items:center;gap:10px}
+.mp-foot input{flex:1;accent-color:var(--accent)}
+.mp-foot .btn{flex:none}
+.mp-note{font-size:12px;color:var(--muted);line-height:1.5}
+.eq{display:inline-flex;align-items:flex-end;gap:2px;height:12px}
+.eq i{width:3px;background:var(--accent);border-radius:1px;animation:mpEq .9s ease-in-out infinite}
+.eq i:nth-child(2){animation-delay:.3s}.eq i:nth-child(3){animation-delay:.6s}
+@keyframes mpEq{0%,100%{height:3px}50%{height:12px}}
+@media (prefers-reduced-motion:reduce){.music-btn.on svg,.eq i{animation:none}.eq i{height:8px}}

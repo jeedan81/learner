@@ -39,7 +39,7 @@
 
   function appbar(title, sub, opts = {}) {
     $('#appbar').innerHTML = (opts.back ? `<button class="icon-btn" id="backBtn" aria-label="뒤로">${ICONS.back}</button>` : '<span style="width:8px"></span>')
-      + `<div class="ttl">${esc(title)}${sub ? `<span class="sub">${esc(sub)}</span>` : ''}</div>${netChip()}`;
+      + `<div class="ttl">${esc(title)}${sub ? `<span class="sub">${esc(sub)}</span>` : ''}</div>${netChip()}${LPmusic.button()}`;
     if (opts.back) $('#backBtn').onclick = back;
   }
   function netChip() {
@@ -93,7 +93,7 @@
 
   /* ───────── 로그인 ───────── */
   function renderLogin() {
-    $('#appbar').innerHTML = `<span style="width:8px"></span><div class="ttl">통합 학습기<span class="sub">회화 · 수학 · 과학 · 역사</span></div>${netChip()}`;
+    $('#appbar').innerHTML = `<span style="width:8px"></span><div class="ttl">통합 학습기<span class="sub">회화 · 수학 · 과학 · 역사</span></div>${netChip()}${LPmusic.button()}`;
     $('#tabbar').className = 'tabbar hidden'; $('#tabbar').innerHTML = '';
     const users = LP.users(), sync = LP.GH.on();
     $('#view').innerHTML = `<div class="stack narrow">
