@@ -1,0 +1,26 @@
+# Publish the learner app to GitHub Pages (jeedan81/learner, public repo).
+# Run from the learner folder:  powershell -ExecutionPolicy Bypass -File .\tools\publish.ps1
+# Only app files are uploaded. Learning records live in the private repo jeedan81/learner-data.
+# (ASCII only on purpose: Windows PowerShell 5.1 misreads UTF-8 scripts without a BOM.)
+$ErrorActionPreference = 'Stop'
+Set-Location (Split-Path $PSScriptRoot -Parent)
+
+gh auth status *> $null
+if ($LASTEXITCODE -ne 0) { Write-Host 'GitHub CLI is not logged in. Run: gh auth login --web'; exit 1 }
+
+node tools/build-sw.js
+git add -A
+git diff --cached --quiet
+if ($LASTEXITCODE -ne 0) { git commit -q -m 'Update learner app' }
+
+gh repo view jeedan81/learner *> $null
+if ($LASTEXITCODE -ne 0) {
+  gh repo create jeedan81/learner --public --description 'Learner: talk, math, science, history' --source . --remote origin --push
+  if ($LASTEXITCODE -ne 0) { Write-Host 'Failed to create the repo.'; exit 1 }
+  gh api -X POST repos/jeedan81/learner/pages -f 'source[branch]=main' -f 'source[path]=/' | Out-Null
+} else {
+  git push origin main
+  if ($LASTEXITCODE -ne 0) { Write-Host 'Push failed.'; exit 1 }
+}
+Write-Host ''
+Write-Host 'Done. In 1-2 minutes: https://jeedan81.github.io/learner/'
