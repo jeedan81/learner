@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>통합 학습기</title>
+  <meta name="description" content="회화·수학·과학·역사를 같은 방식(도입 → 개념 → 확인 문제 → 정리)으로 공부하고, 기록을 여러 기기에서 함께 보는 학습 앱">
+  <meta name="theme-color" content="#2a56d4">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="학습기">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Gowun+Batang:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="css/platform.css">
+  <link rel="stylesheet" href="css/extra.css">
+</head>
+<body>
+  <header class="appbar" id="appbar"></header>
+  <main id="view"><div class="empty">불러오는 중…</div></main>
+  <nav class="tabbar" id="tabbar"></nav>
+  <div id="modal" class="backdrop" hidden></div>
+  <div class="toast" id="toast"></div>
+  <script src="js/core.js"></script>
+  <script src="js/subjects.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

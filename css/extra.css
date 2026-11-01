@@ -1,0 +1,112 @@
+/* 통합 학습기 추가 스타일 — 수학 앱 스타일(platform.css) 위에 얹는다. 색은 platform.css의 :root 토큰만 쓴다. */
+body{background:var(--paper)}
+.hidden{display:none!important}
+.narrow{max-width:560px;margin:0 auto;width:100%}
+.hint{color:var(--muted);font-size:13.5px;line-height:1.55}
+.err{color:var(--bad);font-size:13.5px;min-height:1em}
+.fld{display:block;font-weight:600;font-size:14px}
+.fld input{display:block;width:100%;margin-top:6px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--paper);color:var(--ink);font:inherit;font-weight:400}
+.sec .fld + .fld{margin-top:2px}
+
+/* 칩: 학년·단계·주제 고르기(중립색, 고르면 강조색) */
+.chips{margin-top:6px}
+.chip{background:var(--soft);color:var(--ink);font-weight:500;padding:7px 13px;border:1px solid transparent}
+.chip.on{background:var(--accent);color:var(--accent-ink)}
+.catchips{margin-top:0}
+.mine{font-size:11px;font-weight:700;color:var(--accent);background:var(--soft);padding:2px 7px;border-radius:999px;vertical-align:middle}
+
+/* 앱바 연결 상태 */
+.net{margin-left:auto;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--good-soft);color:var(--good);white-space:nowrap;flex:none}
+.net.off{background:var(--bad-soft);color:var(--bad)}
+
+/* 홈 과목 카드 */
+.gcard .badge{font-size:22px}
+.titem .num.period{color:#fff;font-family:var(--f-body);font-size:11px;font-weight:700;padding:0 2px;text-align:center}
+.titem.review .num.period{background:var(--hi)!important}
+
+/* 세그먼트 */
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{flex:1;min-width:max-content;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:9px 10px;font-weight:600;font-size:14px}
+.seg button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.seg.lang{max-width:360px}
+
+/* 개념: 사실 목록, 사진, 회화 표현 */
+.facts{margin:0;padding-left:20px;display:grid;gap:7px;line-height:1.6}
+.pics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.pics figure{margin:0;display:grid;gap:4px}
+.pics img,.qfig img{width:100%;max-height:260px;object-fit:contain;border-radius:8px;background:var(--soft)}
+.pics figcaption{font-size:12px;color:var(--muted);text-align:center;line-height:1.4}
+.fig > svg,.qfig svg{width:100%;height:auto;max-height:280px;display:block}
+.qfig{margin:4px 0 10px;border:1px solid var(--line);border-radius:10px;padding:8px;background:var(--card)}
+.src{margin:4px 0 10px;padding:10px 12px;border-left:4px solid var(--gc,var(--accent));background:var(--soft);border-radius:0 10px 10px 0;font-family:var(--f-display);font-size:14.5px;line-height:1.6}
+.ord{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:5px;font-weight:400}
+.ord b{color:var(--gc,var(--accent));margin-right:4px}
+.credit{color:var(--muted);font-size:11.5px}
+.phr{display:grid;gap:8px}
+.pr{display:flex;gap:10px;align-items:center;background:var(--soft);border-radius:10px;padding:10px 12px}
+.pr b{display:block;font-weight:600}
+.pr span{font-size:13px;color:var(--muted)}
+.say{flex:none;width:38px;height:38px;border-radius:50%;background:var(--card);border:1px solid var(--line);font-size:17px;display:inline-grid;place-items:center;vertical-align:middle}
+.big{font-size:18px;font-weight:600;margin:10px 0 4px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.muted{color:var(--muted);font-weight:400;font-size:14px}
+
+/* 회화: AI와 말하기 */
+.chat .missions{display:grid;gap:4px;font-size:13.5px}
+.chat .missions .on{color:var(--good);font-weight:600}
+.msgs{display:grid;gap:8px;max-height:46vh;overflow-y:auto;padding:4px 2px}
+.msg{max-width:88%;padding:9px 12px;border-radius:14px;line-height:1.5;display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap}
+.msg.ai{background:var(--soft);justify-self:start;border-bottom-left-radius:4px}
+.msg.user{background:var(--accent);color:var(--accent-ink);justify-self:end;border-bottom-right-radius:4px}
+.msg.sys{background:var(--bad-soft);color:var(--ink);justify-self:center;font-size:13px}
+.msg .say{width:30px;height:30px;font-size:14px}
+.msg span{flex:1;min-width:0}
+.tipline{flex-basis:100%;font-size:12.5px;color:var(--hi)}
+.send{display:flex;gap:8px}
+.send input{flex:1;min-width:0;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--paper);color:var(--ink);font:inherit}
+.send .btn{flex:none;width:auto;padding:0 18px}
+
+/* 기록: 달력(과목 색 점) */
+.cal span{position:relative;cursor:pointer;flex-direction:column;gap:1px;aspect-ratio:auto;min-height:40px;border-radius:10px}
+.cal span.on{background:var(--soft);color:var(--ink)}
+.cal span.sel{box-shadow:0 0 0 2px var(--hi)}
+.cal span i{display:flex;gap:2px;height:6px}
+.cal em,.legend em{display:inline-block;width:6px;height:6px;border-radius:50%}
+.calhead{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.btn.small{width:auto;padding:6px 12px;font-size:13px}
+.legend{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.legend em{margin-right:4px}
+.daylog .row .s.good{color:var(--good)}.daylog .row .s.bad{color:var(--bad)}
+.perf{padding:8px 0;border-bottom:1px solid var(--line)}
+.perf:last-of-type{border-bottom:0}
+.ph{display:grid;margin-bottom:6px}
+.lvbar2{display:grid;grid-template-columns:58px 1fr 76px;gap:8px;align-items:center;font-size:13px;margin:4px 0}
+.lvbar2 .bt{position:relative;height:9px;background:var(--line);border-radius:999px;overflow:hidden}
+.lvbar2 .bt i{position:absolute;inset:0 auto 0 0;background:var(--gc);border-radius:999px}
+.lvbar2 .bt em{position:absolute;left:85%;top:0;bottom:0;width:2px;background:var(--ink);opacity:.35}
+.lvbar2 .n{text-align:right;font-family:var(--f-mono);font-size:12.5px}
+.checks{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.checks label{display:flex;gap:6px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:10px;font-size:14px}
+.netlist{margin:0;padding-left:18px;font-size:13.5px;line-height:1.6}
+
+/* 모달 */
+.backdrop{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;padding:16px}
+.backdrop[hidden]{display:none}
+.modal{background:var(--card);color:var(--ink);width:100%;max-width:520px;border-radius:18px;padding:18px;max-height:88vh;overflow:auto;display:grid;gap:10px}
+.mbtns{display:grid;gap:8px}
+.btn.danger{background:var(--bad);border-color:var(--bad);color:#fff}
+.rep{width:100%;min-height:230px;font:inherit;font-size:13.5px;line-height:1.55;border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--paper);color:var(--ink);resize:vertical}
+
+/* 태블릿·컴퓨터 */
+.cols{display:grid;gap:14px}
+@media (min-width:900px){
+  main{max-width:1120px;padding-left:24px;padding-right:24px}
+  .cols{grid-template-columns:1.1fr 1fr;gap:20px;align-items:start}
+  .masonry{columns:2;column-gap:20px}
+  .masonry > .card{break-inside:avoid;margin-bottom:16px}
+  .tabbar{left:50%;right:auto;transform:translateX(-50%);width:min(560px,100%);border:1px solid var(--line);border-bottom:0;border-radius:18px 18px 0 0}
+  .tabbar.stepnav{width:min(760px,100%)}
+  .backdrop{align-items:center}
+  .lesson{max-width:760px;margin:0 auto;width:100%}
+}
+.masonry > .card{margin-bottom:14px}
+@media (hover:hover){.card[data-t]:hover,.gcard:hover,.prow:hover{border-color:var(--gc,var(--accent))}}
