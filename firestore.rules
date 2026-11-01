@@ -1,0 +1,26 @@
+rules_version = '2';
+// 통합 학습기 보안 규칙
+// - 각 사용자는 자기 프로필만 읽고, 승인(status) 값은 바꿀 수 없다.
+// - 학습 기록(events, archives)은 관리자 승인을 받은 본인만 읽고 쓸 수 있다.
+// - 관리자(jeedan@learner.app)는 모든 사용자를 보고 승인·거절할 수 있다.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() { return request.auth != null && request.auth.token.email == 'jeedan@learner.app'; }
+    function isMe(uid) { return request.auth != null && request.auth.uid == uid; }
+    function approved(uid) { return get(/databases/$(database)/documents/users/$(uid)).data.status == 'approved'; }
+
+    match /users/{uid} {
+      allow read: if isMe(uid) || isAdmin();
+      allow create: if isMe(uid)
+        && request.resource.data.id + '@learner.app' == request.auth.token.email
+        && ((isAdmin() && request.resource.data.status == 'approved') || (!isAdmin() && request.resource.data.status == 'pending'));
+      allow update: if isAdmin()
+        || (isMe(uid) && request.resource.data.status == resource.data.status && request.resource.data.id == resource.data.id);
+      allow delete: if isAdmin();
+
+      match /{sub}/{docId} {
+        allow read, write: if (isMe(uid) && approved(uid)) || isAdmin();
+      }
+    }
+  }
+}

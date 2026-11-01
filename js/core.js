@@ -1,12 +1,12 @@
-/* 통합 학습기 — 핵심: 과목 데이터 등록, 사용자별 학습 기록(하나의 기록), GitHub 동기화
+/* 통합 학습기 — 핵심: 과목 데이터 등록, 사용자별 학습 기록(하나의 기록), Firebase 동기화
    ─────────────────────────────────────────────────────────────
    과목(LP.subjects): { id, name, emoji, color, files[], build(), grades[] }
    단원(LP.topics[key]): { key, subj, grade, title, sub, kw, sections[], bank[] | makeBank(), ... }
    문제: { lv:1~5, q:HTML, o:[보기 4개 이하], a:정답 번호, why:해설 }
 
-   사용자 기록(doc) — 기기에 저장하고 GitHub 저장소의 users/<아이디>.json 과 합친다
-   { v, id, pass, profile:{name, grade, parent, levels:{과목:단계}, talkLang, mt},
-     events:{ id: 학습 1회 }, archives:{ id: 보관 정보 }, mt }
+   사용자 기록(doc) — 기기에 저장(오프라인에서도 공부)하고, 인터넷이 되면 Firebase(js/cloud.js)와 주고받는다
+   { v:2, id, uid, status:'pending'|'approved'|'rejected', hash(오프라인 로그인 확인용),
+     profile:{name, grade, parent, levels:{과목:단계}, talkLang, mt}, events:{ id: 학습 1회 }, archives:{ id: 보관 정보 } }
    학습 1회(event): { id, at, d:'YYYY-MM-DD', s:과목, t:단원 key, g:단계, ti:단원 이름, m:난이도 모드,
                      q:[[문제 번호, 난이도, 맞음 1/0]], ai?:{m:완료 미션, n:미션 수, said:말한 수}, box:'cur'|보관 id|'del', mt }
    초기화하면 지금 기록의 box를 보관 id로 바꾼다(지우지 않음). 합칠 때는 같은 id 중 mt가 큰 쪽이 이긴다. */
@@ -45,49 +45,80 @@
   // 단원의 문제 은행(회화는 언어에 따라 만들어 둔다)
   LP.bank = t => (t.makeBank ? t.makeBank() : t.bank || []);
 
-  /* ───────── 기기 설정(동기화 정보·API 키 등, 사용자와 무관) ───────── */
+  /* ───────── 기기 설정(API 키 등, 사용자와 무관) ───────── */
   const DEV_KEY = 'lp.device';
-  LP.device = { repo: '', token: '', apiKey: '', model: 'gpt-4o-mini', kakaoKey: '', ...J.get(DEV_KEY, {}) };
+  LP.device = { apiKey: '', model: 'gpt-4o-mini', kakaoKey: '', ...J.get(DEV_KEY, {}) };
+  delete LP.device.repo; delete LP.device.token; // 예전 GitHub 동기화 설정은 쓰지 않는다
   LP.saveDevice = () => J.set(DEV_KEY, LP.device);
 
-  /* ───────── 사용자 ───────── */
+  /* ───────── 사용자 · 로그인 ─────────
+     자동 로그인을 켜면 현재 사용자를 localStorage에, 끄면 sessionStorage(브라우저를 닫으면 사라짐)에 둔다. */
   let doc = null, lessons = {};
   const docKey = id => 'lp.user.' + id;
-  LP.users = () => J.get('lp.users', []);
+  const dirtyKey = () => 'lp.dirty.' + doc.id, pullKey = () => 'lp.pull.' + doc.id;
   LP.user = () => doc;
+  LP.savedId = () => J.get('lp.savedId', '');
+  LP.prefs = () => ({ saveId: true, auto: true, ...J.get('lp.loginPrefs', {}) });
   async function hash(id, pw) {
     const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`learner:${id}:${pw}`));
     return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
   }
-  function useDoc(d) {
-    doc = d; J.set(docKey(d.id), d); J.set('lp.current', d.id);
-    const us = LP.users().filter(u => u !== d.id); us.unshift(d.id); J.set('lp.users', us.slice(0, 8));
+  function useDoc(d, auto) {
+    doc = d; J.set(docKey(d.id), d);
+    try { sessionStorage.setItem('lp.current', d.id); } catch (e) { /* 무시 */ }
+    if (auto) J.set('lp.current', d.id); else J.del('lp.current');
     lessons = J.get('lp.lessons.' + d.id, {});
     derive();
   }
-  LP.restore = () => { const id = J.get('lp.current', null), d = id && J.get(docKey(id), null); if (d) { useDoc(d); return true; } return false; };
-  LP.logout = () => { J.del('lp.current'); doc = null; };
-  // 로그인: 동기화가 켜져 있고 인터넷이 되면 서버 기록을 먼저 확인한다
-  LP.login = async (id, pw, create) => {
+  LP.restore = () => {
+    let id = J.get('lp.current', null);
+    if (!id) try { id = sessionStorage.getItem('lp.current'); } catch (e) { /* 무시 */ }
+    const d = id && J.get(docKey(id), null);
+    if (d && d.v === 2) { useDoc(d, !!J.get('lp.current', null)); return true; }
+    return false;
+  };
+  LP.logout = async () => {
+    J.del('lp.current'); try { sessionStorage.removeItem('lp.current'); } catch (e) { /* 무시 */ }
+    doc = null; if (window.Cloud) await Cloud.signOut().catch(() => {});
+  };
+  const PROFILE_DEFAULT = { name: '', grade: '초5', parent: '', levels: {}, talkLang: 'en', mt: 0 };
+  const onlyProfile = p => { const o = { ...PROFILE_DEFAULT }; for (const k of Object.keys(PROFILE_DEFAULT)) if (p && p[k] !== undefined) o[k] = p[k]; return o; };
+  // 로그인 / 가입. create가 있으면 새로 가입한다. 반환: 'approved' | 'pending' | 'rejected'
+  LP.login = async (id, pw, { create, saveId, auto } = {}) => {
     id = id.trim().toLowerCase();
     if (!/^[a-z0-9_-]{2,20}$/.test(id)) throw new Error('아이디는 영문 소문자·숫자 2~20자로 정해 주세요');
-    if (pw.length < 4) throw new Error('비밀번호는 4자 이상이에요');
-    const h = await hash(id, pw);
-    let local = J.get(docKey(id), null), remote = null;
-    if (GH.on() && navigator.onLine) {
-      try { remote = (await GH.get(id)).doc; } catch (e) { if (e.status === 401 || e.status === 403) throw new Error('GitHub 토큰을 확인해 주세요'); }
+    if (pw.length < 6) throw new Error('비밀번호는 6자 이상이에요');
+    J.set('lp.loginPrefs', { saveId: !!saveId, auto: !!auto });
+    if (saveId) J.set('lp.savedId', id); else J.del('lp.savedId');
+    const h = await hash(id, pw), local = J.get(docKey(id), null);
+    if (!window.Cloud || !Cloud.ready) throw new Error('로그인 서버가 아직 설정되지 않았어요');
+    if (!navigator.onLine) { // 인터넷이 없으면 이 기기에서 전에 로그인한 계정만 열 수 있다
+      if (!create && local && local.v === 2 && local.hash === h) { useDoc(local, auto); return local.status; }
+      throw new Error(create ? '가입은 인터넷에 연결된 상태에서 해 주세요' : '이 기기에서 처음 로그인할 때는 인터넷이 필요해요');
     }
-    const known = remote || local;
-    if (known) {
-      if (known.pass !== h) throw new Error('비밀번호가 맞지 않아요');
-      useDoc(merge(local, remote)); LP.sync(); return 'login';
+    let uid, prof;
+    if (create) { const r = await Cloud.signUp(id, pw, { ...PROFILE_DEFAULT, ...create, mt: Date.now() }, auto); uid = r.uid; prof = r.profile; }
+    else { const r = await Cloud.signIn(id, pw, auto); uid = r.uid; prof = await Cloud.getProfile(uid); }
+    const d = { v: 2, id, uid, hash: h, status: (prof && prof.status) || 'pending', profile: onlyProfile(prof), events: {}, archives: {} };
+    if (local) { // 이 기기에 있던 기록(예전 방식 포함)은 새 계정으로 함께 올린다
+      d.events = local.events || {}; d.archives = local.archives || {};
+      if (local.v !== 2 || local.uid !== uid) J.set('lp.dirty.' + id, { e: Object.fromEntries(Object.keys(d.events).map(k => [k, 1])), a: Object.fromEntries(Object.keys(d.archives).map(k => [k, 1])) });
+      if (local.v !== 2 && local.profile && !prof?.mt) d.profile = onlyProfile({ ...local.profile, mt: Date.now() });
     }
-    if (!create) return 'new';
-    useDoc({ v: 1, id, pass: h, profile: { ...create, levels: {}, talkLang: 'en', mt: Date.now() }, events: {}, archives: {}, mt: Date.now() });
-    LP.sync(); return 'created';
+    if (local && local.uid && local.uid !== uid) J.del('lp.pull.' + id);
+    useDoc(d, auto); LP.sync(); return d.status;
   };
-  LP.changed = () => { doc.mt = Date.now(); J.set(docKey(doc.id), doc); derive(); LP.sync(2500); };
-  LP.setProfile = patch => { Object.assign(doc.profile, patch, { mt: Date.now() }); LP.changed(); };
+  // 승인 상태 다시 확인(대기 화면의 '새로고침', 앱 시작 때)
+  LP.refreshStatus = async () => {
+    if (!doc || !navigator.onLine || !window.Cloud || !Cloud.ready) return doc && doc.status;
+    const p = await Cloud.getProfile(doc.uid).catch(() => null);
+    if (p) { doc.status = p.status; if ((p.mt || 0) > (doc.profile.mt || 0)) doc.profile = onlyProfile(p); J.set(docKey(doc.id), doc); }
+    return doc.status;
+  };
+  LP.isAdmin = () => !!(doc && window.Cloud && Cloud.isAdminId(doc.id));
+  function markDirty(kind, ids) { const d = J.get(dirtyKey(), {}); if (kind === 'p') d.p = 1; else { d[kind] = d[kind] || {}; ids.forEach(i => (d[kind][i] = 1)); } J.set(dirtyKey(), d); }
+  LP.changed = () => { J.set(docKey(doc.id), doc); derive(); LP.sync(2500); };
+  LP.setProfile = patch => { Object.assign(doc.profile, patch, { mt: Date.now() }); markDirty('p'); LP.changed(); };
   LP.setLevel = (subj, gid) => LP.setProfile({ levels: { ...doc.profile.levels, [subj]: gid } });
 
   /* 진행 중인 수업(기기에만 저장) */
@@ -97,8 +128,7 @@
 
   /* ───────── 기록 ───────── */
   LP.events = (box = 'cur') => Object.values(doc ? doc.events : {}).filter(e => e.box === box && e.t).sort((a, b) => a.at - b.at);
-  LP.addEvent = e => { const at = Date.now(); const ev = { id: rid(), at, d: dkey(at), box: 'cur', mt: at, ...e }; doc.events[ev.id] = ev; LP.changed(); return ev; };
-  // 이벤트에서 별·포인트 계산
+  LP.addEvent = e => { const at = Date.now(); const ev = { id: rid(), at, d: dkey(at), box: 'cur', mt: at, ...e }; doc.events[ev.id] = ev; markDirty('e', [ev.id]); LP.changed(); return ev; };
   LP.score = e => { const n = e.q.length, ok = e.q.filter(x => x[2]).length; return { n, ok, stars: !n ? 3 : ok === n ? 3 : ok >= Math.ceil(n * 0.6) ? 2 : 1 }; };
 
   // 지금 기록에서 진도·난이도별 실력·오답·포인트를 다시 계산한다
@@ -136,6 +166,7 @@
     const now = Date.now(), id = 'a' + rid();
     doc.archives[id] = { id, at: now, reason, subjects, summary: summarize(evs), mt: now };
     for (const e of evs) { e.box = id; e.mt = now; }
+    markDirty('e', evs.map(e => e.id)); markDirty('a', [id]);
     for (const k of Object.keys(lessons)) if (LP.topics[k] ? subjects.includes(LP.topics[k].subj) : subjects.includes(k.split('/')[0])) delete lessons[k];
     J.set('lp.lessons.' + doc.id, lessons);
     LP.changed(); return id;
@@ -144,96 +175,57 @@
   LP.restoreArchive = id => {
     const a = doc.archives[id]; if (!a) return;
     LP.reset(a.subjects, '되돌리기 전 자동 보관');
-    const now = Date.now();
-    for (const e of LP.events(id)) { e.box = 'cur'; e.mt = now; }
-    a.deleted = true; a.mt = now; LP.changed();
+    const now = Date.now(), evs = LP.events(id);
+    for (const e of evs) { e.box = 'cur'; e.mt = now; }
+    a.deleted = true; a.mt = now; markDirty('e', evs.map(e => e.id)); markDirty('a', [id]); LP.changed();
   };
   LP.deleteArchive = id => {
-    const a = doc.archives[id]; if (!a) return; const now = Date.now();
-    for (const e of LP.events(id)) doc.events[e.id] = { id: e.id, box: 'del', mt: now }; // 내용은 지우고 표시만 남긴다(다른 기기와 합칠 때 되살아나지 않게)
-    a.deleted = true; a.mt = now; LP.changed();
+    const a = doc.archives[id]; if (!a) return; const now = Date.now(), evs = LP.events(id);
+    for (const e of evs) doc.events[e.id] = { id: e.id, box: 'del', mt: now }; // 내용은 지우고 표시만 남긴다(다른 기기와 합칠 때 되살아나지 않게)
+    a.deleted = true; a.mt = now; markDirty('e', evs.map(e => e.id)); markDirty('a', [id]); LP.changed();
   };
 
-  /* ───────── GitHub 동기화 ─────────
-     비공개 저장소 하나에 사용자마다 users/<아이디>.json 파일을 둔다. 토큰은 그 저장소의 Contents 읽기·쓰기 권한만 주면 된다. */
-  const GH = {
-    on: () => !!(LP.device.repo && LP.device.token),
-    url: id => `https://api.github.com/repos/${LP.device.repo}/contents/users/${encodeURIComponent(id)}.json`,
-    headers: () => ({ Authorization: `Bearer ${LP.device.token}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' }),
-    async get(id) {
-      const r = await fetch(GH.url(id) + '?t=' + Date.now(), { headers: GH.headers(), cache: 'no-store' });
-      if (r.status === 404) return { doc: null, sha: null };
-      if (!r.ok) { const e = new Error('GitHub ' + r.status); e.status = r.status; throw e; }
-      const j = await r.json();
-      let text;
-      if (j.content) text = new TextDecoder().decode(Uint8Array.from(atob(j.content.replace(/\n/g, '')), c => c.charCodeAt(0)));
-      else { // 1MB가 넘으면 content가 비어 오므로 원문으로 다시 받는다
-        const raw = await fetch(GH.url(id), { headers: { ...GH.headers(), Accept: 'application/vnd.github.raw+json' }, cache: 'no-store' });
-        text = await raw.text();
-      }
-      return { doc: JSON.parse(text), sha: j.sha };
-    },
-    async put(id, d, sha) {
-      const bytes = new TextEncoder().encode(JSON.stringify(d));
-      let bin = ''; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
-      const r = await fetch(GH.url(id), { method: 'PUT', headers: GH.headers(),
-        body: JSON.stringify({ message: `학습 기록 저장: ${id}`, content: btoa(bin), ...(sha ? { sha } : {}) }) });
-      if (!r.ok) { const e = new Error('GitHub ' + r.status); e.status = r.status; throw e; }
-    },
-    async test() {
-      const r = await fetch(`https://api.github.com/repos/${LP.device.repo}`, { headers: GH.headers(), cache: 'no-store' });
-      if (!r.ok) throw new Error(r.status === 404 ? '저장소를 찾을 수 없어요(이름·토큰 권한 확인)' : r.status === 401 ? '토큰이 올바르지 않아요' : 'GitHub 오류 ' + r.status);
-      const j = await r.json(); return j.private;
-    },
-  };
-  LP.GH = GH;
-  function newer(a, b) { return !a ? b : !b ? a : (b.mt || 0) > (a.mt || 0) ? b : a; }
-  function merge(a, b) {
-    if (!a) return b; if (!b) return a;
-    const out = { ...a, pass: b.pass || a.pass, profile: newer(a.profile, b.profile), events: { ...a.events }, archives: { ...a.archives }, mt: Math.max(a.mt || 0, b.mt || 0) };
-    for (const [k, v] of Object.entries(b.events || {})) out.events[k] = newer(out.events[k], v);
-    for (const [k, v] of Object.entries(b.archives || {})) out.archives[k] = newer(out.archives[k], v);
-    return out;
-  }
-  LP.merge = merge;
-  // 동기화 상태: off | idle | busy | ok | offline | error
-  LP.syncState = { st: GH.on() ? 'idle' : 'off', at: 0, msg: '' };
+  /* ───────── Firebase 동기화 ─────────
+     바뀐 기록(dirty)을 올리고, 마지막으로 받은 뒤 바뀐 기록을 받아 합친다. 오프라인이면 기다렸다가 연결되면 한다. */
+  const newer = (a, b) => (!a ? b : !b ? a : (b.mt || 0) > (a.mt || 0) ? b : a);
+  LP.syncState = { st: 'off', at: 0, msg: '' };
   const listeners = new Set();
   LP.onSync = f => listeners.add(f);
   const setState = (st, msg = '') => { Object.assign(LP.syncState, { st, msg }, st === 'ok' ? { at: Date.now() } : {}); listeners.forEach(f => f(LP.syncState)); };
   let timer = null, running = null, again = false;
-  LP.sync = (delay = 0) => {
-    if (!doc) return;
-    if (!GH.on()) { setState('off'); return; }
-    clearTimeout(timer); timer = setTimeout(run, delay);
-  };
+  LP.sync = (delay = 0) => { if (!doc) return; clearTimeout(timer); timer = setTimeout(run, delay); };
   async function run() {
     if (!doc) return;
+    if (!window.Cloud || !Cloud.ready) { setState('off'); return; }
     if (!navigator.onLine) { setState('offline'); return; }
     if (running) { again = true; return; }
     running = (async () => {
       setState('busy');
-      for (let tries = 0; tries < 3; tries++) {
-        try {
-          const { doc: remote, sha } = await GH.get(doc.id);
-          const before = JSON.stringify(doc);
-          const merged = merge(doc, remote);
-          if (JSON.stringify(merged) !== before) { doc = merged; J.set(docKey(doc.id), doc); derive(); listeners.forEach(f => f(LP.syncState, true)); }
-          if (!remote || JSON.stringify(merged) !== JSON.stringify(remote)) await GH.put(doc.id, merged, sha);
-          setState('ok'); return;
-        } catch (e) {
-          if (e.status === 409 || e.status === 422) continue; // 다른 기기가 먼저 저장함 → 다시 받아서 합치기
-          setState('error', e.status === 401 || e.status === 403 ? '토큰 권한을 확인해 주세요' : e.status === 404 ? '저장소를 찾을 수 없어요' : '잠시 후 다시 시도할게요');
-          return;
-        }
-      }
-      setState('error', '다른 기기와 동시에 저장하고 있어요. 잠시 후 다시 시도할게요');
+      try {
+        if (!Cloud.current()) { setState('error', '다시 로그인해 주세요'); return; }
+        await LP.refreshStatus();
+        if (doc.status !== 'approved') { setState('pending'); listeners.forEach(f => f(LP.syncState, true)); return; }
+        const dirty = J.get(dirtyKey(), {});
+        if (dirty.p) await Cloud.saveProfile(doc.uid, doc.profile);
+        const evs = Object.keys(dirty.e || {}).map(k => doc.events[k]).filter(Boolean), arcs = Object.keys(dirty.a || {}).map(k => doc.archives[k]).filter(Boolean);
+        if (evs.length || arcs.length) await Cloud.push(doc.uid, evs, arcs);
+        // 올리는 사이에 새로 바뀐 것은 남겨 둔다
+        const now = J.get(dirtyKey(), {}); evs.forEach(e => now.e && delete now.e[e.id]); arcs.forEach(a => now.a && delete now.a[a.id]); if (dirty.p) delete now.p; J.set(dirtyKey(), now);
+        const start = Date.now(), since = J.get(pullKey(), 0);
+        const r = await Cloud.pull(doc.uid, Math.max(0, since - 120000)); // 기기 시계 차이를 감안해 2분 겹쳐 받는다
+        let changed = false;
+        for (const e of r.events) { const m = newer(doc.events[e.id], e); if (m !== doc.events[e.id]) { doc.events[e.id] = m; changed = true; } }
+        for (const a of r.archives) { const m = newer(doc.archives[a.id], a); if (m !== doc.archives[a.id]) { doc.archives[a.id] = m; changed = true; } }
+        J.set(pullKey(), start);
+        if (changed) { J.set(docKey(doc.id), doc); derive(); }
+        setState('ok'); if (changed) listeners.forEach(f => f(LP.syncState, true));
+      } catch (e) { setState('error', e.message || '잠시 후 다시 시도할게요'); }
     })();
     await running; running = null;
     if (again) { again = false; LP.sync(500); }
   }
   window.addEventListener('online', () => LP.sync(300));
-  window.addEventListener('offline', () => GH.on() && setState('offline'));
+  window.addEventListener('offline', () => setState('offline'));
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') LP.sync(300); });
   setInterval(() => { if (document.visibilityState === 'visible') LP.sync(); }, 90000);
 
