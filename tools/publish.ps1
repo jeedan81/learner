@@ -2,11 +2,14 @@
 # Run from the learner folder:  powershell -ExecutionPolicy Bypass -File .\tools\publish.ps1
 # Only app files are uploaded. Learning records live in the private repo jeedan81/learner-data.
 # (ASCII only on purpose: Windows PowerShell 5.1 misreads UTF-8 scripts without a BOM.)
-$ErrorActionPreference = 'Stop'
 Set-Location (Split-Path $PSScriptRoot -Parent)
 
-gh auth status *> $null
-if ($LASTEXITCODE -ne 0) { Write-Host 'GitHub CLI is not logged in. Run: gh auth login --web'; exit 1 }
+gh auth token *> $null
+if ($LASTEXITCODE -ne 0) {
+  Write-Host 'GitHub login needed. A browser page will open: paste the code shown, then Authorize.'
+  gh auth login --hostname github.com --git-protocol https --web
+  if ($LASTEXITCODE -ne 0) { Write-Host 'Login failed.'; exit 1 }
+}
 
 node tools/build-sw.js
 git add -A
