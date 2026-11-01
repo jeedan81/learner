@@ -4,8 +4,8 @@
 # (ASCII only on purpose: Windows PowerShell 5.1 misreads UTF-8 scripts without a BOM.)
 Set-Location (Split-Path $PSScriptRoot -Parent)
 
-gh auth token *> $null
-if ($LASTEXITCODE -ne 0) {
+$me = gh api user --jq .login 2>$null
+if ($me -ne 'jeedan81') {
   Write-Host 'GitHub login needed. A browser page will open: paste the code shown, then Authorize.'
   gh auth login --hostname github.com --git-protocol https --web
   if ($LASTEXITCODE -ne 0) { Write-Host 'Login failed.'; exit 1 }
