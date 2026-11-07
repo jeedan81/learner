@@ -17,6 +17,8 @@
     'h1-poly': 'h2-seq', 'h1-complex': 'h1-quad', 'h1-quad': 'h2-diffapp', 'h1-eqs': 'h2-limit', 'h1-counting': 'h3-perm', 'h1-matrix': 'h3-vector', 'h1-line': 'h3-vector', 'h1-circle': 'h3-conic', 'h1-set': 'h3-prob', 'h1-func': 'h2-expfunc',
     'h2-exp': 'h2-expfunc', 'h2-expfunc': 'h3-diff2', 'h2-trig': 'h3-diff2', 'h2-seq': 'h3-series', 'h2-limit': 'h2-diff', 'h2-diff': 'h3-diff2', 'h2-diffapp': 'h3-diff2', 'h2-int': 'h3-int2' };
   const mathRaw = { grades: [], bank: {} };
+  // 문제 글에서 도형·식·자료를 읽어 그림을 붙인다(js/figs.js). 그림이 이미 있으면 그대로
+  const withFig = id => q => { if (typeof q.q !== 'string' || /<svg|<img|<canvas/.test(q.q)) return q; const f = LPfig.math(id, q.q); return f ? { ...q, q: `<div class="qfig">${f}</div>` + q.q } : q; };
   LP.subject({
     id: 'math', name: '수학', emoji: '➗', color: '#2a56d4', mascot: 'π', desc: '초5~고3 · 그림과 그래프로 이해하는 수학',
     files: ['elem', 'mid', 'high', 'bank-e5', 'bank-e6', 'bank-m1', 'bank-m2', 'bank-m3', 'bank-h1', 'bank-h2', 'bank-h3'].map(f => `data/math/${f}.js`),
@@ -29,7 +31,7 @@
       for (const [g, ts] of mathRaw.grades) {
         LP.addGrade('math', { id: g.id, short: g.short, name: g.name, color: g.color, desc: g.desc });
         for (const t of ts) {
-          const bank = (t.quiz || []).map(q => ({ lv: 3, ...q })).concat(mathRaw.bank[t.id] || []);
+          const bank = (t.quiz || []).map(q => ({ lv: 3, ...q })).concat(mathRaw.bank[t.id] || []).map(withFig(t.id));
           LP.addTopic('math', g.id, { key: 'math/' + t.id, id: t.id, title: t.title, sub: t.sub, kw: t.kw, sections: t.sections, bank });
         }
       }
@@ -46,11 +48,18 @@
   const sciContent = {};
   LP.subject({
     id: 'science', name: '과학', emoji: '🔬', color: '#0b9e6f', mascot: '⚛', desc: '초등~고3 · 개념 설명과 실험·그림 문제',
-    files: ['questions', 'images', 'content-e1', 'content-e2', 'content-m12', 'content-m3', 'content-h1', 'content-h2', 'content-h3'].map(f => `data/science/${f}.js`),
+    files: ['questions', 'images', 'figs', 'content-e1', 'content-e2', 'content-m12', 'content-m3', 'content-h1', 'content-h2', 'content-h3'].map(f => `data/science/${f}.js`),
     before() { window.SCI = { add: (g, u, d) => { sciContent[g + '|' + u] = d; } }; },
     build() {
       const Q = typeof QUESTIONS !== 'undefined' ? QUESTIONS : [], GEN = typeof GENERATORS !== 'undefined' ? GENERATORS : {}, IMG = typeof IMAGES !== 'undefined' ? IMAGES : {};
       const fig = k => (IMG[k] ? `<div class="qfig">${IMG[k]()}</div>` : '');
+      // 그림이 없는 문제에는 단원 그림(또는 낱말에 맞는 그림)을 붙인다(data/science/figs.js)
+      const SF = window.SCI_FIGS || { units: {}, rules: [], draw: {} };
+      const sciFig = (gid, u) => q => {
+        if (/<svg|<img/.test(q.q)) return q;
+        const t = LPfig.plain(q.q), hit = (SF.rules || []).find(([re]) => re.test(t)), k = (hit && hit[1]) || SF.units[gid + '|' + u], d = k && SF.draw[k];
+        return d ? { ...q, q: `<div class="qfig">${d()}</div>` + q.q } : q;
+      };
       for (const [id, short, name, color, desc] of SCI_GRADES) {
         LP.addGrade('science', { id, short, name, color, desc });
         const units = [...new Set(Q.filter(q => q.g === id).map(q => q.u))];
@@ -61,6 +70,7 @@
             .concat(old.map(q => ({ lv: q.d, q: fig(q.img) + esc(q.q), o: q.o, a: q.a, why: q.ex })));
           // 계산 문제 생성기는 난이도마다 하나씩 미리 만들어 둔다
           for (const g of GEN[id] || []) for (let lv = 1; lv <= 5; lv++) { const x = g(lv); if (x.u === u) bank.push({ lv, q: esc(x.q), o: x.o, a: x.a, why: x.ex }); }
+          bank.forEach((q, j) => (bank[j] = sciFig(id, u)(q)));
           const sections = (c.sections || []).slice();
           const pics = [...new Set(old.filter(q => q.img && IMG[q.img]).map(q => q.img))];
           if (pics.length && sections.length) sections[sections.length - 1] = { ...sections[sections.length - 1], fig: { type: 'raw', html: IMG[pics[0]](), cap: '그림으로 확인해 보세요' } };
@@ -73,6 +83,16 @@
   });
 
   /* ═════════ 🏯 역사 ═════════ */
+  const HIS_KW = { jumeok: '주먹도끼', bitsal: '빗살무늬', goindol: '고인돌', bipa: '비파형 ?동검', bandal: '반달 ?돌칼', garak: '가락바퀴', bangudae: '반구대', sehyeong: '세형 ?동검', mumun: '민무늬 ?토기', myeongdo: '명도전',
+    cheomseong: '첨성대', geumgwan: '신라 ?금관|금관총', gwanggaeto: '광개토 ?대왕릉?비|광개토대왕비', hyangno: '금동 ?대향로', bangasayu: '반가사유상', muryeong: '무령왕릉', jeongnimsa: '정림사', mireuksa: '미륵사', suryeop: '수렵도|무용총', cheonmado: '천마도|천마총',
+    hou: '호우명|호우총', bunhwang: '분황사', sunsubi: '순수비', gaya: '판갑옷|철제 갑옷', gangseo: '사신도|강서대묘', seokgatap: '석가탑|불국사 3층 석탑', sinjong: '성덕 ?대왕 ?신종|에밀레종', cheongja: '상감 ?청자|상감법', daejanggyeong: '팔만대장경|재조대장경', janggyeong: '장경판전',
+    dabotap: '다보탑', seokguram: '석굴암', gameunsa: '감은사', balhae: '발해 ?석등', cheolgam: '철감선사', dharani: '무구정광', hyangno2: '청자 ?투각|칠보무늬', jikji: '직지', muryangsu: '무량수전|부석사', woljeongsa: '월정사',
+    gyeongcheonsa: '경천사', eunjin: '은진미륵|관촉사', suwol: '수월관음도', cheugugi: '측우기', angbu: '앙부일구', hunmin: '훈민정음', geobukseon: '거북선', jagyeongnu: '자격루', honcheonui: '혼천의', geunjeongjeon: '근정전',
+    jongmyo: '종묘', mongyu: '몽유도원도', buncheong: '분청사기', honil: '혼일강리', cheonsang: '천상열차분야지도', sillok: '조선왕조실록|실록', sungnyemun: '숭례문', dosan: '도산 ?서원', geojunggi: '거중기', dalhangari: '달항아리',
+    sangpyeong: '상평통보', hwaseong: '수원 ?화성|화성을? (?:쌓|축조|건설)', seodang: '김홍도', ssireum: '씨름', dano: '단오풍정|신윤복', inwang: '인왕제색도|진경 ?산수화', sehando: '세한도|김정희', daedong: '대동여지도|김정호', cheonghwa: '청화 ?백자', donguibogam: '동의보감|허준',
+    banchado: '반차도', dongnipmun: '독립문', train: '경인선', jeoncha: '전차 개통|전차가 개통', heungseon: '흥선 ?대원군', cheokhwabi: '척화비', ujeong: '우정총국|갑신정변', seokjojeon: '석조전', hwanggungu: '환구단|원구단', dongnipsinmun: '독립신문',
+    anjunggeun: '안중근', myeongdong: '명동 ?성당', daehanmaeil: '대한매일신보', seoneonseo: '독립 ?선언서|기미 ?독립', tupyo: '5[·.] ?10 ?총선거', yugwansun: '유관순', imsijeongbu: '임시 ?정부', yunbonggil: '윤봉길', gwangbokgun: '광복군', seodaemun: '서대문 ?형무소',
+    jeongbusurip: '대한민국 정부 수립|정부 수립', incheon: '인천 ?상륙', panmunjom: '정전 ?협정|휴전 ?협정', heungnam: '흥남 ?철수', olympic: '서울 ?올림픽', gyeongbu: '경부 ?고속', gimgu: '김구', taegeukgi: '태극기', poster: '물산 ?장려', export: '수출 ?(?:100억|주도|드라이브)' };
   const HIS_COLORS = { elem: '#c2410c', mid: '#2f6f4f', high: '#1e40af', gong: '#6b21a8' };
   const HIS_NAMES = { elem: ['초등', '초등 한국사'], mid: ['중등', '중학교 역사'], high: ['고등', '고등학교 한국사'], gong: ['공무원', '공무원·한국사능력검정'] };
   LP.subject({
@@ -86,13 +106,25 @@
         return null;
       };
       const ORD = ['㉠', '㉡', '㉢', '㉣'];
+      // 사진이 없는 문제: 문제 글·해설·정답에 나오는 유물·인물·사건 이름으로 사진(그림)을 찾아 붙인다.
+      // 오답 보기에만 나오는 이름은 보지 않는다(엉뚱한 보기의 사진이 나오지 않게)
+      const KW = Object.entries(HIS_KW).filter(([id]) => PH[id] || IM[id]).map(([id, re]) => [id, new RegExp(re)]);
+      const autoPic = (q, right) => {
+        for (const t of [q.q, q.source || '', right, q.explain || '']) {
+          let best = null;
+          for (const [id, re] of KW) { const m = re.exec(t); if (m && (!best || m.index < best[1])) best = [id, m.index]; }
+          if (best) return best[0];
+        }
+        return null;
+      };
       for (const lv of ['elem', 'mid', 'high', 'gong']) {
         const C = DATA[lv]; if (!C) continue;
         LP.addGrade('history', { id: lv, short: HIS_NAMES[lv][0], name: HIS_NAMES[lv][1], color: HIS_COLORS[lv], desc: C.sub || C.label });
         for (const ch of C.chapters) {
           const key = `history/${lv}/${ch.id}`;
           const bank = ch.questions.map((q, i) => {
-            const p = q.img && pic(q.img), head = (p ? `<div class="qfig">${p.html}</div>` : '') + (q.source ? `<blockquote class="src">${q.source}</blockquote>` : '');
+            const right = q.type === 'ox' || q.type === 'order' ? '' : (q.options || [])[q.answer] || '';
+            const p = pic(q.img || autoPic(q, String(right))), head = (p ? `<div class="qfig">${p.html}</div>` : '') + (q.source ? `<blockquote class="src">${q.source}</blockquote>` : '');
             const why = (q.explain || '') + (p && p.credit ? `<br><small class="credit">${p.credit}</small>` : '');
             if (q.type === 'ox') return { lv: q.diff, q: head + q.q, o: ['O (맞다)', 'X (틀리다)'], a: q.answer ? 0 : 1, why };
             if (q.type === 'order') {
@@ -193,7 +225,8 @@
       m = mix([f, ...pick(3, f, p => p[0])], 0, seed + 'e');
       bank.push({ lv: 5, q: `🔊를 눌러 잘 듣고, 들은 문장을 고르세요.<div class="big">${say(f, lang)} <span class="muted">듣기</span></div>`, o: m.o.map(esc), a: m.a, why: `들려준 문장: ${esc(f)} (${esc(ko)})` });
     });
-    return bank;
+    const scene = LPfig.talkScene(s, lc); // 어떤 상황의 대화인지 그림 카드로
+    return bank.map(q => ({ ...q, q: scene + q.q }));
   }
   window.LPutil = { esc, shuffle };
 })();

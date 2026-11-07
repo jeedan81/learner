@@ -114,12 +114,28 @@
   ];
 
   /* ───────── 재생·정지 ───────── */
+  // 아이폰·아이패드는 무음 스위치를 켜 두면 Web Audio 소리를 막는다.
+  // 소리 종류를 '재생'으로 알리고(사파리 16.4+), 무음 <audio>를 함께 틀어 두면 무음 모드에서도 소리가 난다
+  let keepAlive = null;
+  function silentWav() {
+    const n = 8000, b = new ArrayBuffer(44 + n), v = new DataView(b), w = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+    w(0, 'RIFF'); v.setUint32(4, 36 + n, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true); w(36, 'data'); v.setUint32(40, n, true);
+    for (let i = 0; i < n; i++) v.setUint8(44 + i, 128);
+    return URL.createObjectURL(new Blob([b], { type: 'audio/wav' }));
+  }
+  function unlock() {
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+    if (!keepAlive) { keepAlive = new Audio(silentWav()); keepAlive.loop = true; keepAlive.setAttribute('playsinline', ''); }
+    const p = keepAlive.play(); if (p && p.catch) p.catch(() => {});
+  }
   function ensure() {
     if (!ctx) {
       const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return false;
       ctx = new AC(); master = ctx.createGain(); master.gain.value = 0; master.connect(ctx.destination);
     }
-    if (ctx.state === 'suspended') ctx.resume();
+    unlock();
+    if (ctx.state !== 'running') ctx.resume().catch(() => {});
     return true;
   }
   function stop(fade = 0.8) {
@@ -128,13 +144,14 @@
     const g = c.out.gain, t = ctx.currentTime;
     g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(0, t + fade);
     c.timers.forEach(clearInterval);
+    if (keepAlive) keepAlive.pause();
     setTimeout(() => { c.nodes.forEach(n => { try { n.stop && n.stop(); } catch (e) {} try { n.disconnect(); } catch (e) {} }); c.out.disconnect(); }, fade * 1000 + 100);
     refresh();
   }
   function play(id) {
-    if (!ensure()) return toast('이 브라우저는 소리 만들기를 지원하지 않아요');
     const tr = TRACKS.find(x => x.id === id); if (!tr) return;
     stop();
+    if (!ensure()) return toast('이 브라우저는 소리 만들기를 지원하지 않아요');
     const out = ctx.createGain(); out.gain.value = 0; out.connect(master);
     const c = { out, nodes: [], timers: [] };
     tr.make(out, c.nodes, c.timers);

@@ -63,9 +63,11 @@ css/extra.css              로그인·기록·회화 대화·넓은 화면 등 �
 js/core.js                 과목 등록·불러오기, 사용자 기록(이벤트), 진도 계산, 초기화·보관함, GitHub 동기화
 js/subjects.js             네 과목 데이터를 학년·단원·개념·문제 은행으로 바꾸는 어댑터
 js/app.js                  화면(홈·학습·수업·기록·설정·로그인), 추천, 보고서·카카오톡
+js/figs.js                 문제 그림 자동 생성(수학: 문제 글의 도형·치수·식·자료를 읽어 SVG로, 회화: 상황 카드)
+js/music.js                집중 음악(앱바 🎵): Web Audio로 소리를 만들어 음원 파일 없이 오프라인 재생
 data/math/                 수학 단원·문제 은행 (원래 수학 앱 데이터)
-data/science/              questions.js·images.js(원래 과학 앱) + content-*.js(새 개념·문제), GUIDE.md·check.js(작성 기준·검사)
-data/history/              시대별 문제·그림·사진(원래 역사 앱)
+data/science/              questions.js·images.js(원래 과학 앱) + content-*.js(새 개념·문제) + figs.js(단원·낱말별 문제 그림), GUIDE.md·check.js(작성 기준·검사)
+data/history/              시대별 문제·그림·사진(원래 역사 앱). 사진이 없는 문제는 문제·해설의 유물·인물 이름으로 사진을 찾아 붙인다(js/subjects.js HIS_KW)
 data/talk/                 상황 데이터·AI 모듈 api.js(원래 회화 앱, 오프라인 안내 추가)
 sw.js, precache.js         오프라인(precache.js는 tools/build-sw.js가 생성)
 ```
