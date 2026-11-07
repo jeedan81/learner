@@ -71,31 +71,32 @@
   const pick = a => a[Math.floor(Math.random() * a.length)];
   const hz = m => 440 * Math.pow(2, (m - 69) / 12);
 
-  /* ───────── 곡 목록: 각 곡은 (출력) → 노드 목록에 소리를 붙인다 ───────── */
+  /* ───────── 곡 목록: 각 곡은 (출력) → 노드 목록에 소리를 붙인다 ─────────
+     boost: 곡마다 원래 크기가 달라서 비슷한 크기(약 −14dB)로 맞추는 배율 */
   const TRACKS = [
-    { id: 'rain', emoji: '🌧️', name: '빗소리', desc: '창밖에 조용히 내리는 비', make(out, L, T) {
+    { id: 'rain', boost: 5, emoji: '🌧️', name: '빗소리', desc: '창밖에 조용히 내리는 비', make(out, L, T) {
       bed(L, 'pink', out, 0.55, [['highpass', 500], ['lowpass', 5500]]);
       bed(L, 'brown', out, 0.35, [['lowpass', 350]]);
       loop(T, t => burst(out, t, rnd(0.02, 0.06), rnd(0.03, 0.12), 'bandpass', rnd(1800, 5000), 2), () => rnd(0.02, 0.12));
     } },
-    { id: 'waves', emoji: '🌊', name: '파도 소리', desc: '밀려왔다 빠지는 바닷가', make(out, L) {
+    { id: 'waves', boost: 3, emoji: '🌊', name: '파도 소리', desc: '밀려왔다 빠지는 바닷가', make(out, L) {
       const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 900; L.push(f);
       const g = bed(L, 'brown', f, 0.45); f.connect(out);
       lfo(L, 1 / 11, 0.35, g.gain); lfo(L, 1 / 11, 600, f.frequency);
       bed(L, 'pink', out, 0.06, [['highpass', 2500]]);
     } },
-    { id: 'fire', emoji: '🔥', name: '모닥불', desc: '타닥타닥 장작 타는 소리', make(out, L, T) {
+    { id: 'fire', boost: 4.5, emoji: '🔥', name: '모닥불', desc: '타닥타닥 장작 타는 소리', make(out, L, T) {
       bed(L, 'brown', out, 0.5, [['lowpass', 700]]);
       loop(T, t => { const n = Math.random() < 0.15 ? 3 : 1; for (let i = 0; i < n; i++) burst(out, t + i * rnd(0.01, 0.04), rnd(0.005, 0.03), rnd(0.08, 0.35), 'highpass', rnd(1200, 3500)); }, () => rnd(0.05, 0.45));
     } },
-    { id: 'piano', emoji: '🎹', name: '잔잔한 건반', desc: '느리게 흐르는 화음과 멜로디', make(out, L, T) {
+    { id: 'piano', boost: 5, emoji: '🎹', name: '잔잔한 건반', desc: '느리게 흐르는 화음과 멜로디', make(out, L, T) {
       const wet = echo(L, out, 0.42, 0.38, 0.5);
       const CH = [[48, 55, 64], [45, 52, 60], [41, 48, 57], [43, 50, 59]], SC = [60, 62, 64, 67, 69, 72, 74, 76];
       let c = 0;
       loop(T, t => { CH[c++ % 4].forEach(m => tone(wet, t, hz(m), 9, 0.05, 'sine', 2.5)); }, () => 8);
       loop(T, t => { const m = pick(SC); tone(wet, t, hz(m), 3, 0.09, 'triangle'); tone(wet, t, hz(m + 12), 1.5, 0.02); }, () => pick([0.8, 1.2, 1.6, 2.4]));
     } },
-    { id: 'space', emoji: '🌌', name: '우주 앰비언트', desc: '깊고 넓게 퍼지는 배경음', make(out, L) {
+    { id: 'space', boost: 2, emoji: '🌌', name: '우주 앰비언트', desc: '깊고 넓게 퍼지는 배경음', make(out, L) {
       const wet = echo(L, out, 0.9, 0.5, 0.6);
       [[36, 0], [43, 3], [52, 7], [55, -4]].forEach(([m, det]) => {
         const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sine'; o.frequency.value = hz(m); o.detune.value = det;
@@ -104,13 +105,13 @@
       });
       bed(L, 'pink', out, 0.05, [['bandpass', 900, 0.7]]);
     } },
-    { id: 'alpha', emoji: '🧠', name: '알파파', desc: '10Hz 바이노럴 비트 · 이어폰 권장', make(out, L) {
+    { id: 'alpha', boost: 3, emoji: '🧠', name: '알파파', desc: '10Hz 바이노럴 비트 · 이어폰 권장', make(out, L) {
       const mg = ctx.createChannelMerger(2); mg.connect(out); L.push(mg);
       [[200, 0], [210, 1]].forEach(([f, ch]) => { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = f; g.gain.value = 0.18; o.connect(g); g.connect(mg, 0, ch); o.start(); L.push(o, g); });
       bed(L, 'pink', out, 0.08, [['lowpass', 1200]]);
     } },
-    { id: 'brown', emoji: '🟤', name: '브라운 노이즈', desc: '낮고 묵직한 잡음 · 소음 가리기', make(out, L) { bed(L, 'brown', out, 0.7, [['lowpass', 900]]); } },
-    { id: 'pink', emoji: '🩷', name: '핑크 노이즈', desc: '고르고 부드러운 잡음', make(out, L) { bed(L, 'pink', out, 0.45); } },
+    { id: 'brown', boost: 3.3, emoji: '🟤', name: '브라운 노이즈', desc: '낮고 묵직한 잡음 · 소음 가리기', make(out, L) { bed(L, 'brown', out, 0.7, [['lowpass', 900]]); } },
+    { id: 'pink', boost: 5, emoji: '🩷', name: '핑크 노이즈', desc: '고르고 부드러운 잡음', make(out, L) { bed(L, 'pink', out, 0.45); } },
   ];
 
   /* ───────── 재생·정지 ───────── */
@@ -132,7 +133,11 @@
   function ensure() {
     if (!ctx) {
       const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return false;
-      ctx = new AC(); master = ctx.createGain(); master.gain.value = 0; master.connect(ctx.destination);
+      ctx = new AC(); master = ctx.createGain(); master.gain.value = 0;
+      // 곡마다 소리를 키운 만큼 큰 소리가 깨지지 않도록 마지막에 리미터를 둔다
+      const lim = ctx.createDynamicsCompressor();
+      lim.threshold.value = -10; lim.knee.value = 6; lim.ratio.value = 12; lim.attack.value = 0.003; lim.release.value = 0.25;
+      master.connect(lim); lim.connect(ctx.destination);
     }
     unlock();
     if (ctx.state !== 'running') ctx.resume().catch(() => {});
@@ -155,7 +160,7 @@
     const out = ctx.createGain(); out.gain.value = 0; out.connect(master);
     const c = { out, nodes: [], timers: [] };
     tr.make(out, c.nodes, c.timers);
-    out.gain.linearRampToValueAtTime(1, ctx.currentTime + 1.5);
+    out.gain.setValueAtTime(0, ctx.currentTime); out.gain.linearRampToValueAtTime(tr.boost || 4, ctx.currentTime + 1.5);
     master.gain.setTargetAtTime(vol, ctx.currentTime, 0.05);
     cur = c; curId = id; save(); refresh();
   }
