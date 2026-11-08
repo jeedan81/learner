@@ -176,6 +176,31 @@
     defaultLevel: band => ({ 초: 'elem', 중: 'mid', 고: 'high' }[band] || 'gong'),
   });
 
+  /* ═════════ 📘 영어(입시) ═════════ */
+  // 회화와 별개로 내신·모의고사·수능 대비: 문법(어법)·어휘·독해 유형. 단원 자료는 data/english/content-*.js (작성 기준 GUIDE.md)
+  const ENG_GRADES = [['m1', '중1', '중학교 1학년 영어', '#1c9bd6', '기초 문법과 짧은 글 읽기'], ['m2', '중2', '중학교 2학년 영어', '#8e5bd8', '준동사·완료·비교와 내용 일치'],
+    ['m3', '중3', '중학교 3학년 영어', '#e07a12', '관계사·분사·가정법과 요지·빈칸'], ['h1', '고1', '고등학교 1학년 영어', '#d9480f', '모의고사 대비: 어법·어휘·유형 독해'],
+    ['h2', '고2', '고등학교 2학년 영어', '#2b6cb0', '특수 구문과 추론형 독해'], ['h3', '고3', '고3 · 수능 영어', '#7048c8', '수능 유형별 실전']];
+  const engContent = [];
+  LP.subject({
+    id: 'english', name: '영어', emoji: '📘', color: '#1d4ed8', mascot: 'A+', desc: '중1~고3 · 문법·어휘·독해 유형(내신·수능)',
+    files: ['content-m12', 'content-m3h1', 'content-h2', 'content-h3'].map(f => `data/english/${f}.js`),
+    before() { window.ENG = { add: (g, u, d) => engContent.push([g, u, d]) }; },
+    build() {
+      for (const [id, short, name, color, desc] of ENG_GRADES) {
+        LP.addGrade('english', { id, short, name, color, desc });
+        engContent.filter(c => c[0] === id).forEach(([, u, d], i) => {
+          // 예문(ex)은 🔊 듣기 버튼이 붙은 목록으로
+          const sections = d.sections.map(sec => (sec.ex ? { ...sec, html: (sec.html || '') + `<div class="phr">${sec.ex.map(([en, ko]) => `<div class="pr">${say(en, 'en')}<div><b>${esc(en)}</b><span>${esc(ko)}</span></div></div>`).join('')}</div>` } : sec));
+          LP.addTopic('english', id, { key: `english/${id}-${i + 1}`, title: u, sub: d.sub, kw: d.kw, sections, bank: d.bank.map(q => ({ ...q })) });
+        });
+      }
+    },
+    // 다음 학년의 같은 순서 단원을 선행 학습으로 추천
+    adv: key => { const [g, n] = key.slice(8).split('-'), i = ENG_GRADES.findIndex(x => x[0] === g); const nx = ENG_GRADES[i + 1]; return nx ? `english/${nx[0]}-${n}` : null; },
+    defaultLevel: (band, n) => (band === '초' ? 'm1' : band === '중' ? 'm' + Math.min(n, 3) : band === '고' ? 'h' + Math.min(n, 3) : 'h3'),
+  });
+
   /* ═════════ 🗣️ 회화 ═════════ */
   const TALK_COLORS = { elem: '#e8590c', middle: '#d6336c', high: '#1971c2', adult: '#495057' };
   LP.subject({

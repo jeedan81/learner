@@ -93,7 +93,7 @@
 
   /* ───────── 로그인 ───────── */
   function renderLogin() {
-    $('#appbar').innerHTML = `<span style="width:8px"></span><div class="ttl">통합 학습기<span class="sub">회화 · 수학 · 과학 · 역사</span></div>${netChip()}${LPmusic.button()}`;
+    $('#appbar').innerHTML = `<span style="width:8px"></span><div class="ttl">통합 학습기<span class="sub">수학 · 과학 · 역사 · 영어 · 회화</span></div>${netChip()}${LPmusic.button()}`;
     $('#tabbar').className = 'tabbar hidden'; $('#tabbar').innerHTML = '';
     const users = LP.users(), sync = LP.GH.on();
     $('#view').innerHTML = `<div class="stack narrow">
@@ -312,9 +312,17 @@
           <button class="btn kakao" id="shareDay">💬 오늘 공부한 내용 카톡으로 보내기</button></section>`;
     }
     $('#view').innerHTML = `<div class="stack lesson" style="--gc:${g.color}">
-      <div class="card lprog"><div class="phases">${PHASES.filter(p => p[0] !== 'ai' || t.talk).map(p => { const i = PHASES.indexOf(p); return `<span class="${i < ph ? 'past' : i === ph ? 'on' : ''}">${p[1]}</span>`; }).join('')}</div><div class="segs">${steps.map((x, i) => `<i class="${i < n ? 'past' : i === n ? 'on' : ''}"></i>`).join('')}</div></div>
+      <div class="card lprog"><div class="phases">${PHASES.filter(p => p[0] !== 'ai' || t.talk).map(p => { const i = PHASES.indexOf(p); return `<button data-ph="${p[0]}" class="${i < ph ? 'past' : i === ph ? 'on' : ''}">${p[1]}</button>`; }).join('')}</div><div class="segs">${steps.map((x, i) => `<i data-step="${i}" class="${i < n ? 'past' : i === n ? 'on' : ''}" title="${i + 1}단계"></i>`).join('')}</div></div>
       ${tutor(s, msg, mcls)}${body}</div>`;
     stepNav(t, steps, L);
+    // 도입·개념·문제·정리(와 아래 칸)를 눌러 그 단계로 바로 간다. 정리는 문제를 다 푼 뒤에만
+    const jump = to => {
+      if (steps[to].k === 'done') { const open = steps.findIndex(x => x.k === 'q' && L.ans[x.i] == null); if (open >= 0) { to = open; toast('문제를 다 풀면 정리로 갈 수 있어요'); } }
+      if (to === L.step) return;
+      L.step = to; LP.setLesson(key, L); renderTopic(); window.scrollTo({ top: 0 });
+    };
+    $$('.phases [data-ph]').forEach(b => b.onclick = () => { const k = b.dataset.ph, i = steps.findIndex(x => x.k === k); if (i >= 0) jump(k === 'q' ? Math.max(i, steps.findIndex(x => x.k === 'q' && L.ans[x.i] == null)) : i); });
+    $$('.segs [data-step]').forEach(b => b.onclick = () => jump(+b.dataset.step));
     bindList(); bindLang();
     $$('.fig[data-fig]').forEach(mountFig);
     if (st.k === 'q') bindQuiz(t, L, st);
@@ -533,13 +541,15 @@
       return { s, E, cur, at, acc: pct(at.ok, at.n), byLevel, last, days: new Set(E.map(e => e.d)).size };
     });
   }
-  const LEVEL_IDS = { math: ['e5', 'e6', 'm1', 'm2', 'm3', 'h1', 'h2', 'h3'], science: ['e', 'm1', 'm2', 'm3', 'h1', 'h2', 'h3'], history: ['elem', 'mid', 'high', 'gong'], talk: ['elem', 'middle', 'high', 'adult'] };
-  const LEVEL_NAMES = { math: ['초5', '초6', '중1', '중2', '중3', '고1', '고2', '고3'], science: ['초등', '중1', '중2', '중3', '고1', '고2', '고3'], history: ['초등', '중등', '고등', '공무원'], talk: ['초등', '중등', '고등', '일반'] };
-  const lvName = (subj, id) => LEVEL_NAMES[subj][LEVEL_IDS[subj].indexOf(id)] || id;
+  const LEVEL_IDS = { math: ['e5', 'e6', 'm1', 'm2', 'm3', 'h1', 'h2', 'h3'], science: ['e', 'm1', 'm2', 'm3', 'h1', 'h2', 'h3'], history: ['elem', 'mid', 'high', 'gong'], english: ['m1', 'm2', 'm3', 'h1', 'h2', 'h3'], talk: ['elem', 'middle', 'high', 'adult'] };
+  const LEVEL_NAMES = { math: ['초5', '초6', '중1', '중2', '중3', '고1', '고2', '고3'], science: ['초등', '중1', '중2', '중3', '고1', '고2', '고3'], history: ['초등', '중등', '고등', '공무원'], english: ['중1', '중2', '중3', '고1', '고2', '고3'], talk: ['초등', '중등', '고등', '일반'] };
+  // 목록에 없는 과목이 생겨도 홈이 깨지지 않도록, 불러온 학년 목록으로 대신한다
+  const lvIds = subj => LEVEL_IDS[subj] || LP.subjects[subj].grades.map(g => g.id);
+  const lvName = (subj, id) => (LEVEL_NAMES[subj] || [])[lvIds(subj).indexOf(id)] || (LP.gradeOf(subj, id) || {}).short || id;
   function recommend() {
     const out = [];
     for (const A of analyze()) {
-      const { s, cur, at, acc } = A, ids = LEVEL_IDS[s.id], i = ids.indexOf(cur), next = ids[i + 1], prev = ids[i - 1];
+      const { s, cur, at, acc } = A, ids = lvIds(s.id), i = ids.indexOf(cur), next = ids[i + 1], prev = ids[i - 1];
       if (!A.E.length) { out.push({ subj: s.id, type: 'start', score: 20, level: cur, title: `${s.name} 시작하기 — ${lvName(s.id, cur)}`, text: `아직 기록이 없어요. ${lvName(s.id, cur)} 단계 첫 단원부터 시작해 보세요.` }); continue; }
       if (at.n >= 20 && acc >= 85) {
         if (next) out.push({ subj: s.id, type: 'advance', score: 100 + acc, level: next, title: `${s.name} 선행 학습 — ${lvName(s.id, next)}`, text: `${lvName(s.id, cur)} 단계 ${at.n}문제 정답률 ${acc}%! ${lvName(s.id, next)} 과정을 미리 공부해 보세요.` });
@@ -615,7 +625,7 @@
   function recReco() {
     const A = analyze(), rs = recommend();
     const perf = A.map(a => { const s = a.s; return `<div class="perf" style="--gc:${s.color}"><div class="ph"><b>${s.emoji} ${s.name}</b><span class="hint">내 단계 ${esc(lvName(s.id, a.cur))} · 공부한 날 ${a.days}일 · 수업 ${a.E.length}번</span></div>
-      ${LEVEL_IDS[s.id].map(id => { const b = a.byLevel[id]; return b ? `<div class="lvbar2"><span>${lvName(s.id, id)}${id === a.cur ? ' ◀' : ''}</span><span class="bt"><i style="width:${pct(b.ok, b.n)}%"></i><em></em></span><span class="n">${pct(b.ok, b.n)}% <small>(${b.n})</small></span></div>` : ''; }).join('') || '<p class="hint">최근 30일 기록이 없어요.</p>'}</div>`; }).join('');
+      ${lvIds(s.id).map(id => { const b = a.byLevel[id]; return b ? `<div class="lvbar2"><span>${lvName(s.id, id)}${id === a.cur ? ' ◀' : ''}</span><span class="bt"><i style="width:${pct(b.ok, b.n)}%"></i><em></em></span><span class="n">${pct(b.ok, b.n)}% <small>(${b.n})</small></span></div>` : ''; }).join('') || '<p class="hint">최근 30일 기록이 없어요.</p>'}</div>`; }).join('');
     const lvAll = [1, 2, 3, 4, 5].map(l => Object.values(D.skill).reduce((a, s) => (s[l] ? [a[0] + s[l][0], a[1] + s[l][1]] : a), [0, 0]));
     return `<div class="cols"><div class="stack"><p class="hint">최근 30일 정답률로 판단해요. 내 단계에서 20문제 이상 풀고 85% 이상이면 다음 단계 선행 학습을 추천합니다.</p>${rs.map(recoCard).join('')}</div>
       <div class="stack"><section class="card sec"><h3>과목별 수행능력 (최근 30일)</h3>${perf}<p class="hint">세로선은 선행 학습 기준(85%)이에요.</p></section>
@@ -706,7 +716,7 @@
         <label class="fld">보고서 받는 사람<input id="stParent" maxlength="12" placeholder="예: 엄마" value="${esc(p.parent || '')}"></label>
         <button class="btn" id="logout">로그아웃 (다른 사용자로 로그인)</button></section>
       <section class="card sec"><h3>📚 과목별 내 단계</h3><p class="hint">오늘의 계획과 추천이 이 단계를 기준으로 나와요.</p>
-        ${SUBJ().map(s => `<div class="fld">${s.emoji} ${s.name}</div><div class="chips">${LEVEL_IDS[s.id].map(id => `<button class="chip ${myLevel(s) === id ? 'on' : ''}" data-lvset="${s.id}:${id}">${lvName(s.id, id)}</button>`).join('')}</div>`).join('')}
+        ${SUBJ().map(s => `<div class="fld">${s.emoji} ${s.name}</div><div class="chips">${lvIds(s.id).map(id => `<button class="chip ${myLevel(s) === id ? 'on' : ''}" data-lvset="${s.id}:${id}">${lvName(s.id, id)}</button>`).join('')}</div>`).join('')}
         <div class="fld">🗣️ 회화 언어</div>${langSwitch()}</section>
       <section class="card sec"><h3>☁️ 기록 동기화 (GitHub)</h3>${syncFormHTML()}<button class="btn" id="syNow" ${LP.GH.on() ? '' : 'disabled'}>지금 동기화</button></section>
       <section class="card sec"><h3>🤖 회화 AI (OpenAI)</h3><p class="hint">AI와 말하기 단계에서 써요. 키는 이 기기에만 저장되고 OpenAI로만 전송돼요. 없으면 연습용 대화로 진행해요.</p>
