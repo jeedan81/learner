@@ -226,7 +226,7 @@
     for (let k = 0; k * per < words.length; k++) {
       const part = words.slice(k * per, (k + 1) * per);
       out.push({ h: `${name} ${'①②③④'[k]} (${k * per + 1}~${k * per + part.length})`, p: k === 0 ? '그림을 먼저 보고 뜻을 떠올린 뒤, 🔊를 눌러 발음을 듣고 예문을 소리 내어 읽어 보세요.' : '그림 → 단어 → 뜻 → 예문 순서로 익혀요.',
-        html: `<div class="vbar"><button class="btn small vhide-toggle" type="button"></button><span class="hint">가리기를 켜면 그림만 보여요. 카드를 눌러 정답을 확인해요.</span></div><div class="vcards">${part.map(vcard).join('')}</div>` });
+        html: `<div class="vbar"><button class="btn small vhide-toggle" type="button"></button><span class="hint">그림과 단어를 보고 뜻을 떠올린 뒤, 카드를 눌러 확인해요.</span></div><div class="vcards">${part.map(vcard).join('')}</div>` });
     }
     out.push({ h: '한눈에 정리', p: '모르는 단어는 위로 돌아가 카드를 한 번 더 보고 문제로 넘어가요.', table: { head: ['그림', '단어', '뜻'], rows: words.map(x => [`<span class="vtem">${x.em || ''}</span>`, `<b>${esc(x.w)}</b> <small>${POS[x.pos] || ''}</small>`, esc(x.ko)]) } });
     return out;

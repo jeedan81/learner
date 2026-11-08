@@ -184,11 +184,11 @@ body{background:var(--paper)}
 .vsa{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;font-size:11.5px;color:var(--muted)}
 .vtem{font-size:22px}
 .vpic{font-size:84px;line-height:1.1;text-align:center;margin:10px 0 4px}
-/* 단어 가리기: 그림만 보고 떠올린 뒤 카드를 눌러 확인 */
+/* 뜻 가리기: 그림과 영어 단어만 보고 뜻을 떠올린 뒤 카드를 눌러 확인 */
 .vbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:4px 0 2px}
 .vbar .hint{font-size:12.5px}
 .vhide .vcard{cursor:pointer}
-.vhide .vcard:not(.open) .vw b,.vhide .vcard:not(.open) .vw small,.vhide .vcard:not(.open) .vko,.vhide .vcard:not(.open) .vex,.vhide .vcard:not(.open) .vsa{filter:blur(7px);opacity:.55;user-select:none}
+.vhide .vcard:not(.open) .vw small,.vhide .vcard:not(.open) .vko,.vhide .vcard:not(.open) .vex,.vhide .vcard:not(.open) .vsa{filter:blur(7px);opacity:.55;user-select:none}
 .vhide .vcard:not(.open)::after{content:"눌러서 확인";font-size:11.5px;color:var(--muted)}
 .vhide .vcard.open{border-color:var(--gc,var(--accent))}
 /* 영어 듣기 문제: 재생 버튼, 해설 속 대본 */

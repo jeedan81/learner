@@ -543,9 +543,9 @@
     }
   }
   document.addEventListener('click', e => { const b = e.target.closest('.say'); if (!b) return; e.preventDefault(); if (b.dataset.dlg) { try { speakDialog(JSON.parse(b.dataset.dlg)); } catch (err) {} } else speak(b.dataset.say, b.dataset.lang); });
-  // 영어 단어 카드: '가리기'를 켜면 그림만 보이고, 카드를 눌러 단어·뜻을 확인한다(설정은 기기에 기억)
+  // 영어 단어 카드: '뜻 가리기'를 켜면 그림과 영어 단어만 보이고, 카드를 눌러 뜻·예문을 확인한다(설정은 기기에 기억)
   const vhide = { get: () => localStorage.getItem('lp.vhide') === '1', set: v => { try { localStorage.setItem('lp.vhide', v ? '1' : '0'); } catch (e) {} } };
-  function vhideSync() { document.body.classList.toggle('vhide', vhide.get()); $$('.vhide-toggle').forEach(b => (b.textContent = vhide.get() ? '👀 단어 모두 보기' : '🙈 단어 가리고 그림만 보기')); }
+  function vhideSync() { document.body.classList.toggle('vhide', vhide.get()); $$('.vhide-toggle').forEach(b => (b.textContent = vhide.get() ? '👀 뜻 모두 보기' : '🙈 뜻 가리기(그림·단어만 보기)')); }
   document.addEventListener('click', e => {
     if (e.target.closest('.vhide-toggle')) { vhide.set(!vhide.get()); $$('.vcard.open').forEach(c => c.classList.remove('open')); vhideSync(); return; }
     const c = e.target.closest('.vcard'); if (c && !e.target.closest('.say') && document.body.classList.contains('vhide')) c.classList.toggle('open');
