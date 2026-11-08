@@ -191,3 +191,8 @@ body{background:var(--paper)}
 .vhide .vcard:not(.open) .vw b,.vhide .vcard:not(.open) .vw small,.vhide .vcard:not(.open) .vko,.vhide .vcard:not(.open) .vex,.vhide .vcard:not(.open) .vsa{filter:blur(7px);opacity:.55;user-select:none}
 .vhide .vcard:not(.open)::after{content:"눌러서 확인";font-size:11.5px;color:var(--muted)}
 .vhide .vcard.open{border-color:var(--gc,var(--accent))}
+/* 영어 듣기 문제: 재생 버튼, 해설 속 대본 */
+.big.listen{display:flex;align-items:center;gap:10px;margin:10px 0 4px}
+.big.listen .say{width:52px;height:52px;font-size:24px}
+.script{margin-top:8px;padding:8px 10px;border-radius:8px;background:var(--soft);font-size:13.5px;line-height:1.6;font-family:Georgia,"Times New Roman",var(--f-body)}
+.script b{display:inline-block;min-width:22px;color:var(--gc,var(--accent));font-family:var(--f-body)}

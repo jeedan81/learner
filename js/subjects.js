@@ -183,13 +183,21 @@
     ['h2', '고2', '고등학교 2학년 영어', '#2b6cb0', '특수 구문과 추론형 독해'], ['h3', '고3', '고3 · 수능 영어', '#7048c8', '수능 유형별 실전']];
   // 영어 자료 파일은 ENG.add(문법·독해 단원), ENG.vocab(단어 단원)을 부른다. 두 과목이 동시에 불러와도 섞이지 않게 한 번만 정한다
   const engContent = [], engVocab = [];
-  const ENG_PARTS = [['grammar', '문법', '✏️'], ['vocab', '단어', '🖼️'], ['reading', '독해', '📖']];
+  const ENG_PARTS = [['grammar', '문법', '✏️'], ['vocab', '단어', '🖼️'], ['reading', '독해', '📖'], ['listening', '듣기', '🎧']];
+  // 듣기 문제(audio: [[화자, 대사], …]): 문제에는 재생 버튼만, 대본은 답한 뒤 해설에서 보여 준다
+  const engQ = q => {
+    if (!q.audio) return { ...q };
+    const btn = `<div class="big listen"><button class="say" data-dlg="${esc(JSON.stringify(q.audio))}" aria-label="듣기">🔊</button><span class="muted">눌러서 듣기 · 여러 번 들어도 돼요</span></div>`;
+    const script = `<div class="script">${q.audio.map(([w, t]) => `<div><b>${esc(w)}</b> ${esc(t)}</div>`).join('')}</div>`;
+    return { ...q, q: q.q + btn, why: (q.why || '') + script };
+  };
   // 단원 제목으로 파트를 정한다: 어휘 단원은 단어 파트, 독해 유형은 독해 파트, 나머지는 문법
-  const engPart = u => (/어휘/.test(u) ? 'vocab' : /^독해|빈칸|순서|삽입|주제|요지|함축|도표|장문/.test(u) ? 'reading' : 'grammar');
+  const engPart = u => (/^듣기/.test(u) ? 'listening' : /어휘/.test(u) ? 'vocab' : /^독해|빈칸|순서|삽입|주제|요지|함축|도표|장문/.test(u) ? 'reading' : 'grammar');
   window.ENG = { add: (g, u, d) => engContent.push([g, u, d]), vocab: (g, u, d) => engVocab.push([g, u, d]) };
   LP.subject({
     id: 'english', name: '영어', emoji: '📘', color: '#1d4ed8', mascot: 'A+', desc: '중1~고3 · 문법 · 단어(그림 카드) · 독해 (내신·수능)',
-    files: ['content-m12', 'content-m3h1', 'content-h2', 'content-h3', 'vocab-m12', 'vocab-m3h1', 'vocab-h23'].map(f => `data/english/${f}.js`),
+    // 단원 번호(key)가 파일 순서로 정해지므로 새 파일은 항상 맨 뒤에 붙인다
+    files: ['content-m12', 'content-m3h1', 'content-h2', 'content-h3', 'content-read-m12', 'content-read-m3', 'content-gram-add', 'content-read-h1', 'content-listen', 'vocab-m12', 'vocab-m3h1', 'vocab-h23'].map(f => `data/english/${f}.js`),
     build() {
       for (const [id, short, name, color, desc] of ENG_GRADES) {
         // 학년 안을 문법 · 단어 · 독해 세 파트로 나눠 보여 준다(단원 key는 그대로: 문법·독해 english/학년-번호, 단어 english/학년-v번호)
@@ -201,7 +209,7 @@
           if (x.d.words) { LP.addTopic('english', id, { key: x.key, cat: c, title: x.u, sub: `${x.d.sub} · ${x.d.words.length}단어`, kw: x.d.kw, sections: vocabSections(x.u, x.d.words), bank: vocabBank(x.key, x.d.words) }); continue; }
           // 예문(ex)은 🔊 듣기 버튼이 붙은 목록으로
           const sections = x.d.sections.map(sec => (sec.ex ? { ...sec, html: (sec.html || '') + `<div class="phr">${sec.ex.map(([en, ko]) => `<div class="pr">${say(en, 'en')}<div><b>${esc(en)}</b><span>${esc(ko)}</span></div></div>`).join('')}</div>` } : sec));
-          LP.addTopic('english', id, { key: x.key, cat: c, title: x.u.replace(/^독해:\s*/, ''), sub: x.d.sub, kw: x.d.kw, sections, bank: x.d.bank.map(q => ({ ...q })) });
+          LP.addTopic('english', id, { key: x.key, cat: c, title: x.u.replace(/^(독해|듣기):\s*/, ''), sub: x.d.sub, kw: x.d.kw, sections, bank: x.d.bank.map(engQ) });
         }
       }
     },

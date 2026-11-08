@@ -526,7 +526,23 @@
     if (!('speechSynthesis' in window)) return toast('이 기기는 읽어 주기를 지원하지 않아요');
     speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = lang === 'ja' ? 'ja-JP' : 'en-US'; u.rate = 0.9; speechSynthesis.speak(u);
   }
-  document.addEventListener('click', e => { const b = e.target.closest('.say'); if (b) { e.preventDefault(); speak(b.dataset.say, b.dataset.lang); } });
+  // 영어 듣기 문제: [[화자, 대사], …]를 차례로 읽는다. 남(M)·여(W)는 목소리(없으면 음높이)를 달리한다
+  function speakDialog(lines) {
+    if (!('speechSynthesis' in window)) return toast('이 기기는 읽어 주기를 지원하지 않아요');
+    speechSynthesis.cancel();
+    const en = speechSynthesis.getVoices().filter(v => /^en(-|_|$)/i.test(v.lang));
+    const pickV = re => en.find(v => re.test(v.name));
+    const male = pickV(/male(?!.*female)|david|mark|guy|daniel|alex|fred|george|james/i) || en[0];
+    const female = pickV(/female|zira|aria|jenny|samantha|karen|susan|hazel|libby|google us english/i) || en.find(v => v !== male) || en[0];
+    for (const [who, text] of lines) {
+      const u = new SpeechSynthesisUtterance(text); u.lang = 'en-US'; u.rate = 0.88;
+      const w = String(who).toUpperCase().startsWith('W');
+      const v = w ? female : male; if (v) u.voice = v;
+      if (male === female || !v) u.pitch = w ? 1.3 : 0.75;
+      speechSynthesis.speak(u);
+    }
+  }
+  document.addEventListener('click', e => { const b = e.target.closest('.say'); if (!b) return; e.preventDefault(); if (b.dataset.dlg) { try { speakDialog(JSON.parse(b.dataset.dlg)); } catch (err) {} } else speak(b.dataset.say, b.dataset.lang); });
   // 영어 단어 카드: '가리기'를 켜면 그림만 보이고, 카드를 눌러 단어·뜻을 확인한다(설정은 기기에 기억)
   const vhide = { get: () => localStorage.getItem('lp.vhide') === '1', set: v => { try { localStorage.setItem('lp.vhide', v ? '1' : '0'); } catch (e) {} } };
   function vhideSync() { document.body.classList.toggle('vhide', vhide.get()); $$('.vhide-toggle').forEach(b => (b.textContent = vhide.get() ? '👀 단어 모두 보기' : '🙈 단어 가리고 그림만 보기')); }
