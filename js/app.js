@@ -93,7 +93,7 @@
 
   /* ───────── 로그인 ───────── */
   function renderLogin() {
-    $('#appbar').innerHTML = `<span style="width:8px"></span><div class="ttl">통합 학습기<span class="sub">수학 · 과학 · 역사 · 영어 · 단어 · 회화</span></div>${netChip()}${LPmusic.button()}`;
+    $('#appbar').innerHTML = `<span style="width:8px"></span><div class="ttl">통합 학습기<span class="sub">수학 · 과학 · 역사 · 영어 · 회화</span></div>${netChip()}${LPmusic.button()}`;
     $('#tabbar').className = 'tabbar hidden'; $('#tabbar').innerHTML = '';
     const users = LP.users(), sync = LP.GH.on();
     $('#view').innerHTML = `<div class="stack narrow">
@@ -549,8 +549,8 @@
       return { s, E, cur, at, acc: pct(at.ok, at.n), byLevel, last, days: new Set(E.map(e => e.d)).size };
     });
   }
-  const LEVEL_IDS = { math: ['e5', 'e6', 'm1', 'm2', 'm3', 'h1', 'h2', 'h3'], science: ['e', 'm1', 'm2', 'm3', 'h1', 'h2', 'h3'], history: ['elem', 'mid', 'high', 'gong'], english: ['m1', 'm2', 'm3', 'h1', 'h2', 'h3'], words: ['m1', 'm2', 'm3', 'h1', 'h2', 'h3'], talk: ['elem', 'middle', 'high', 'adult'] };
-  const LEVEL_NAMES = { math: ['초5', '초6', '중1', '중2', '중3', '고1', '고2', '고3'], science: ['초등', '중1', '중2', '중3', '고1', '고2', '고3'], history: ['초등', '중등', '고등', '공무원'], english: ['중1', '중2', '중3', '고1', '고2', '고3'], words: ['중1', '중2', '중3', '고1', '고2', '고3'], talk: ['초등', '중등', '고등', '일반'] };
+  const LEVEL_IDS = { math: ['e5', 'e6', 'm1', 'm2', 'm3', 'h1', 'h2', 'h3'], science: ['e', 'm1', 'm2', 'm3', 'h1', 'h2', 'h3'], history: ['elem', 'mid', 'high', 'gong'], english: ['m1', 'm2', 'm3', 'h1', 'h2', 'h3'], talk: ['elem', 'middle', 'high', 'adult'] };
+  const LEVEL_NAMES = { math: ['초5', '초6', '중1', '중2', '중3', '고1', '고2', '고3'], science: ['초등', '중1', '중2', '중3', '고1', '고2', '고3'], history: ['초등', '중등', '고등', '공무원'], english: ['중1', '중2', '중3', '고1', '고2', '고3'], talk: ['초등', '중등', '고등', '일반'] };
   // 목록에 없는 과목이 생겨도 홈이 깨지지 않도록, 불러온 학년 목록으로 대신한다
   const lvIds = subj => LEVEL_IDS[subj] || LP.subjects[subj].grades.map(g => g.id);
   const lvName = (subj, id) => (LEVEL_NAMES[subj] || [])[lvIds(subj).indexOf(id)] || (LP.gradeOf(subj, id) || {}).short || id;

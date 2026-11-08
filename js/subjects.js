@@ -183,43 +183,30 @@
     ['h2', '고2', '고등학교 2학년 영어', '#2b6cb0', '특수 구문과 추론형 독해'], ['h3', '고3', '고3 · 수능 영어', '#7048c8', '수능 유형별 실전']];
   // 영어 자료 파일은 ENG.add(문법·독해 단원), ENG.vocab(단어 단원)을 부른다. 두 과목이 동시에 불러와도 섞이지 않게 한 번만 정한다
   const engContent = [], engVocab = [];
+  const ENG_PARTS = [['grammar', '문법', '✏️'], ['vocab', '단어', '🖼️'], ['reading', '독해', '📖']];
+  // 단원 제목으로 파트를 정한다: 어휘 단원은 단어 파트, 독해 유형은 독해 파트, 나머지는 문법
+  const engPart = u => (/어휘/.test(u) ? 'vocab' : /^독해|빈칸|순서|삽입|주제|요지|함축|도표|장문/.test(u) ? 'reading' : 'grammar');
   window.ENG = { add: (g, u, d) => engContent.push([g, u, d]), vocab: (g, u, d) => engVocab.push([g, u, d]) };
   LP.subject({
-    id: 'english', name: '영어', emoji: '📘', color: '#1d4ed8', mascot: 'A+', desc: '중1~고3 · 문법·어휘·독해 유형(내신·수능)',
-    files: ['content-m12', 'content-m3h1', 'content-h2', 'content-h3'].map(f => `data/english/${f}.js`),
+    id: 'english', name: '영어', emoji: '📘', color: '#1d4ed8', mascot: 'A+', desc: '중1~고3 · 문법 · 단어(그림 카드) · 독해 (내신·수능)',
+    files: ['content-m12', 'content-m3h1', 'content-h2', 'content-h3', 'vocab-m12', 'vocab-m3h1', 'vocab-h23'].map(f => `data/english/${f}.js`),
     build() {
       for (const [id, short, name, color, desc] of ENG_GRADES) {
-        LP.addGrade('english', { id, short, name, color, desc });
-        engContent.filter(c => c[0] === id).forEach(([, u, d], i) => {
+        // 학년 안을 문법 · 단어 · 독해 세 파트로 나눠 보여 준다(단원 key는 그대로: 문법·독해 english/학년-번호, 단어 english/학년-v번호)
+        const units = engContent.filter(c => c[0] === id).map(([, u, d], i) => ({ u, d, key: `english/${id}-${i + 1}`, cat: engPart(u) }));
+        const vocab = engVocab.filter(c => c[0] === id).map(([, u, d], i) => ({ u: u.replace(/^단어:\s*/, ''), d, key: `english/${id}-v${i + 1}`, cat: 'vocab' }));
+        const all = [...units, ...vocab], n = c => all.filter(x => x.cat === c).length;
+        LP.addGrade('english', { id, short, name, color, desc, cats: ENG_PARTS.map(([c, nm, em]) => ({ id: c, name: `${nm} ${n(c)}`, emoji: em })) });
+        for (const [c] of ENG_PARTS) for (const x of all.filter(y => y.cat === c)) {
+          if (x.d.words) { LP.addTopic('english', id, { key: x.key, cat: c, title: x.u, sub: `${x.d.sub} · ${x.d.words.length}단어`, kw: x.d.kw, sections: vocabSections(x.u, x.d.words), bank: vocabBank(x.key, x.d.words) }); continue; }
           // 예문(ex)은 🔊 듣기 버튼이 붙은 목록으로
-          const sections = d.sections.map(sec => (sec.ex ? { ...sec, html: (sec.html || '') + `<div class="phr">${sec.ex.map(([en, ko]) => `<div class="pr">${say(en, 'en')}<div><b>${esc(en)}</b><span>${esc(ko)}</span></div></div>`).join('')}</div>` } : sec));
-          LP.addTopic('english', id, { key: `english/${id}-${i + 1}`, title: u, sub: d.sub, kw: d.kw, sections, bank: d.bank.map(q => ({ ...q })) });
-        });
+          const sections = x.d.sections.map(sec => (sec.ex ? { ...sec, html: (sec.html || '') + `<div class="phr">${sec.ex.map(([en, ko]) => `<div class="pr">${say(en, 'en')}<div><b>${esc(en)}</b><span>${esc(ko)}</span></div></div>`).join('')}</div>` } : sec));
+          LP.addTopic('english', id, { key: x.key, cat: c, title: x.u.replace(/^독해:\s*/, ''), sub: x.d.sub, kw: x.d.kw, sections, bank: x.d.bank.map(q => ({ ...q })) });
+        }
       }
     },
     // 다음 학년의 같은 순서 단원을 선행 학습으로 추천
-    adv: key => { const [g, n] = key.slice(8).split('-'), i = ENG_GRADES.findIndex(x => x[0] === g); const nx = ENG_GRADES[i + 1]; return nx ? `english/${nx[0]}-${n}` : null; },
-    defaultLevel: (band, n) => (band === '초' ? 'm1' : band === '중' ? 'm' + Math.min(n, 3) : band === '고' ? 'h' + Math.min(n, 3) : 'h3'),
-  });
-
-  /* ═════════ 🖼️ 영어 단어 ═════════ */
-  // 학년별 주제 단어를 그림 카드로 익힌다(data/english/vocab-*.js). 문제는 단어 자료로 자동 생성
-  const WORD_GRADES = [['m1', '중1', '중1 영단어', '#1c9bd6', '학교·가족·음식·집·동물·동작'], ['m2', '중2', '중2 영단어', '#8e5bd8', '날씨·몸·감정·여행·취미·쇼핑'],
-    ['m3', '중3', '중3 영단어', '#e07a12', '직업·환경·과학·사회·관계·시간'], ['h1', '고1', '고1 필수 영단어', '#d9480f', '모의고사 필수: 태도·사회·자연·경제·교육·판단'],
-    ['h2', '고2', '고2 필수 영단어', '#2b6cb0', '심리·예술·법·생명·미디어·추상 명사'], ['h3', '고3', '수능 영단어', '#7048c8', '수능 핵심 동사·명사·형용사·다의어·혼동어·숙어']];
-  LP.subject({
-    id: 'words', name: '영어 단어', emoji: '🖼️', color: '#0f9d8a', mascot: 'ABC', desc: '중1~고3 · 그림으로 익히는 학년별 영단어',
-    files: ['vocab-m12', 'vocab-m3h1', 'vocab-h23'].map(f => `data/english/${f}.js`),
-    build() {
-      for (const [id, short, name, color, desc] of WORD_GRADES) {
-        LP.addGrade('words', { id, short, name, color, desc });
-        engVocab.filter(c => c[0] === id).forEach(([, u, d], i) => {
-          const key = `words/${id}-${i + 1}`, title = u.replace(/^단어:\s*/, '');
-          LP.addTopic('words', id, { key, title, sub: `${d.sub} · ${d.words.length}단어`, kw: d.kw, sections: vocabSections(title, d.words), bank: vocabBank(key, d.words) });
-        });
-      }
-    },
-    adv: key => { const [g, n] = key.slice(6).split('-'), i = WORD_GRADES.findIndex(x => x[0] === g); const nx = WORD_GRADES[i + 1]; return nx ? `words/${nx[0]}-${n}` : null; },
+    adv: key => { const [g, n] = key.slice(8).split('-'), i = ENG_GRADES.findIndex(x => x[0] === g); const nx = ENG_GRADES[i + 1]; return nx && LP.topics[`english/${nx[0]}-${n}`] ? `english/${nx[0]}-${n}` : null; },
     defaultLevel: (band, n) => (band === '초' ? 'm1' : band === '중' ? 'm' + Math.min(n, 3) : band === '고' ? 'h' + Math.min(n, 3) : 'h3'),
   });
 

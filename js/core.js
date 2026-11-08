@@ -96,7 +96,9 @@
   LP.lessons = () => lessons;
 
   /* ───────── 기록 ───────── */
-  LP.events = (box = 'cur') => Object.values(doc ? doc.events : {}).filter(e => e.box === box && e.t).sort((a, b) => a.at - b.at);
+  // 잠시 따로 있던 '영어 단어'(words) 과목 기록은 영어 과목의 단어 단원으로 옮겨 읽는다
+  const fixOld = e => { if (e.s === 'words') { e.s = 'english'; e.t = String(e.t).replace(/^words\/(\w+)-(\d+)$/, 'english/$1-v$2'); } return e; };
+  LP.events = (box = 'cur') => Object.values(doc ? doc.events : {}).map(fixOld).filter(e => e.box === box && e.t).sort((a, b) => a.at - b.at);
   LP.addEvent = e => { const at = Date.now(); const ev = { id: rid(), at, d: dkey(at), box: 'cur', mt: at, ...e }; doc.events[ev.id] = ev; LP.changed(); return ev; };
   // 이벤트에서 별·포인트 계산
   LP.score = e => { const n = e.q.length, ok = e.q.filter(x => x[2]).length; return { n, ok, stars: !n ? 3 : ok === n ? 3 : ok >= Math.ceil(n * 0.6) ? 2 : 1 }; };
