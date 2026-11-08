@@ -93,7 +93,7 @@
 
   /* ───────── 로그인 ───────── */
   function renderLogin() {
-    $('#appbar').innerHTML = `<span style="width:8px"></span><div class="ttl">통합 학습기<span class="sub">수학 · 과학 · 역사 · 영어 · 회화</span></div>${netChip()}${LPmusic.button()}`;
+    $('#appbar').innerHTML = `<span style="width:8px"></span><div class="ttl">통합 학습기<span class="sub">수학 · 과학 · 역사 · 영어 · 단어 · 회화</span></div>${netChip()}${LPmusic.button()}`;
     $('#tabbar').className = 'tabbar hidden'; $('#tabbar').innerHTML = '';
     const users = LP.users(), sync = LP.GH.on();
     $('#view').innerHTML = `<div class="stack narrow">
@@ -527,6 +527,14 @@
     speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = lang === 'ja' ? 'ja-JP' : 'en-US'; u.rate = 0.9; speechSynthesis.speak(u);
   }
   document.addEventListener('click', e => { const b = e.target.closest('.say'); if (b) { e.preventDefault(); speak(b.dataset.say, b.dataset.lang); } });
+  // 영어 단어 카드: '가리기'를 켜면 그림만 보이고, 카드를 눌러 단어·뜻을 확인한다(설정은 기기에 기억)
+  const vhide = { get: () => localStorage.getItem('lp.vhide') === '1', set: v => { try { localStorage.setItem('lp.vhide', v ? '1' : '0'); } catch (e) {} } };
+  function vhideSync() { document.body.classList.toggle('vhide', vhide.get()); $$('.vhide-toggle').forEach(b => (b.textContent = vhide.get() ? '👀 단어 모두 보기' : '🙈 단어 가리고 그림만 보기')); }
+  document.addEventListener('click', e => {
+    if (e.target.closest('.vhide-toggle')) { vhide.set(!vhide.get()); $$('.vcard.open').forEach(c => c.classList.remove('open')); vhideSync(); return; }
+    const c = e.target.closest('.vcard'); if (c && !e.target.closest('.say') && document.body.classList.contains('vhide')) c.classList.toggle('open');
+  });
+  new MutationObserver(() => { if (document.querySelector('.vhide-toggle:empty')) vhideSync(); }).observe(document.getElementById('view'), { childList: true, subtree: true });
 
   /* ───────── 수행능력 분석 · 추천 ─────────
      과목마다 지금 단계에서 최근 30일 정답률이 충분히(20문제 이상) 85% 이상이면 다음 단계 선행 학습,
@@ -541,8 +549,8 @@
       return { s, E, cur, at, acc: pct(at.ok, at.n), byLevel, last, days: new Set(E.map(e => e.d)).size };
     });
   }
-  const LEVEL_IDS = { math: ['e5', 'e6', 'm1', 'm2', 'm3', 'h1', 'h2', 'h3'], science: ['e', 'm1', 'm2', 'm3', 'h1', 'h2', 'h3'], history: ['elem', 'mid', 'high', 'gong'], english: ['m1', 'm2', 'm3', 'h1', 'h2', 'h3'], talk: ['elem', 'middle', 'high', 'adult'] };
-  const LEVEL_NAMES = { math: ['초5', '초6', '중1', '중2', '중3', '고1', '고2', '고3'], science: ['초등', '중1', '중2', '중3', '고1', '고2', '고3'], history: ['초등', '중등', '고등', '공무원'], english: ['중1', '중2', '중3', '고1', '고2', '고3'], talk: ['초등', '중등', '고등', '일반'] };
+  const LEVEL_IDS = { math: ['e5', 'e6', 'm1', 'm2', 'm3', 'h1', 'h2', 'h3'], science: ['e', 'm1', 'm2', 'm3', 'h1', 'h2', 'h3'], history: ['elem', 'mid', 'high', 'gong'], english: ['m1', 'm2', 'm3', 'h1', 'h2', 'h3'], words: ['m1', 'm2', 'm3', 'h1', 'h2', 'h3'], talk: ['elem', 'middle', 'high', 'adult'] };
+  const LEVEL_NAMES = { math: ['초5', '초6', '중1', '중2', '중3', '고1', '고2', '고3'], science: ['초등', '중1', '중2', '중3', '고1', '고2', '고3'], history: ['초등', '중등', '고등', '공무원'], english: ['중1', '중2', '중3', '고1', '고2', '고3'], words: ['중1', '중2', '중3', '고1', '고2', '고3'], talk: ['초등', '중등', '고등', '일반'] };
   // 목록에 없는 과목이 생겨도 홈이 깨지지 않도록, 불러온 학년 목록으로 대신한다
   const lvIds = subj => LEVEL_IDS[subj] || LP.subjects[subj].grades.map(g => g.id);
   const lvName = (subj, id) => (LEVEL_NAMES[subj] || [])[lvIds(subj).indexOf(id)] || (LP.gradeOf(subj, id) || {}).short || id;

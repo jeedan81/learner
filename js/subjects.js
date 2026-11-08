@@ -181,11 +181,12 @@
   const ENG_GRADES = [['m1', '중1', '중학교 1학년 영어', '#1c9bd6', '기초 문법과 짧은 글 읽기'], ['m2', '중2', '중학교 2학년 영어', '#8e5bd8', '준동사·완료·비교와 내용 일치'],
     ['m3', '중3', '중학교 3학년 영어', '#e07a12', '관계사·분사·가정법과 요지·빈칸'], ['h1', '고1', '고등학교 1학년 영어', '#d9480f', '모의고사 대비: 어법·어휘·유형 독해'],
     ['h2', '고2', '고등학교 2학년 영어', '#2b6cb0', '특수 구문과 추론형 독해'], ['h3', '고3', '고3 · 수능 영어', '#7048c8', '수능 유형별 실전']];
+  // 영어 자료 파일은 ENG.add(문법·독해 단원), ENG.vocab(단어 단원)을 부른다. 두 과목이 동시에 불러와도 섞이지 않게 한 번만 정한다
   const engContent = [], engVocab = [];
+  window.ENG = { add: (g, u, d) => engContent.push([g, u, d]), vocab: (g, u, d) => engVocab.push([g, u, d]) };
   LP.subject({
     id: 'english', name: '영어', emoji: '📘', color: '#1d4ed8', mascot: 'A+', desc: '중1~고3 · 문법·어휘·독해 유형(내신·수능)',
-    files: ['content-m12', 'content-m3h1', 'content-h2', 'content-h3', 'vocab-m12', 'vocab-m3h1', 'vocab-h23'].map(f => `data/english/${f}.js`),
-    before() { window.ENG = { add: (g, u, d) => engContent.push([g, u, d]), vocab: (g, u, d) => engVocab.push([g, u, d]) }; },
+    files: ['content-m12', 'content-m3h1', 'content-h2', 'content-h3'].map(f => `data/english/${f}.js`),
     build() {
       for (const [id, short, name, color, desc] of ENG_GRADES) {
         LP.addGrade('english', { id, short, name, color, desc });
@@ -194,11 +195,6 @@
           const sections = d.sections.map(sec => (sec.ex ? { ...sec, html: (sec.html || '') + `<div class="phr">${sec.ex.map(([en, ko]) => `<div class="pr">${say(en, 'en')}<div><b>${esc(en)}</b><span>${esc(ko)}</span></div></div>`).join('')}</div>` } : sec));
           LP.addTopic('english', id, { key: `english/${id}-${i + 1}`, title: u, sub: d.sub, kw: d.kw, sections, bank: d.bank.map(q => ({ ...q })) });
         });
-        // 단어 단원: 그림 카드로 익히고, 문제는 단어 자료로 자동 생성
-        engVocab.filter(c => c[0] === id).forEach(([, u, d], i) => {
-          const key = `english/${id}-v${i + 1}`;
-          LP.addTopic('english', id, { key, title: u, sub: d.sub, kw: d.kw, sections: vocabSections(u, d.words), bank: vocabBank(key, d.words) });
-        });
       }
     },
     // 다음 학년의 같은 순서 단원을 선행 학습으로 추천
@@ -206,14 +202,36 @@
     defaultLevel: (band, n) => (band === '초' ? 'm1' : band === '중' ? 'm' + Math.min(n, 3) : band === '고' ? 'h' + Math.min(n, 3) : 'h3'),
   });
 
+  /* ═════════ 🖼️ 영어 단어 ═════════ */
+  // 학년별 주제 단어를 그림 카드로 익힌다(data/english/vocab-*.js). 문제는 단어 자료로 자동 생성
+  const WORD_GRADES = [['m1', '중1', '중1 영단어', '#1c9bd6', '학교·가족·음식·집·동물·동작'], ['m2', '중2', '중2 영단어', '#8e5bd8', '날씨·몸·감정·여행·취미·쇼핑'],
+    ['m3', '중3', '중3 영단어', '#e07a12', '직업·환경·과학·사회·관계·시간'], ['h1', '고1', '고1 필수 영단어', '#d9480f', '모의고사 필수: 태도·사회·자연·경제·교육·판단'],
+    ['h2', '고2', '고2 필수 영단어', '#2b6cb0', '심리·예술·법·생명·미디어·추상 명사'], ['h3', '고3', '수능 영단어', '#7048c8', '수능 핵심 동사·명사·형용사·다의어·혼동어·숙어']];
+  LP.subject({
+    id: 'words', name: '영어 단어', emoji: '🖼️', color: '#0f9d8a', mascot: 'ABC', desc: '중1~고3 · 그림으로 익히는 학년별 영단어',
+    files: ['vocab-m12', 'vocab-m3h1', 'vocab-h23'].map(f => `data/english/${f}.js`),
+    build() {
+      for (const [id, short, name, color, desc] of WORD_GRADES) {
+        LP.addGrade('words', { id, short, name, color, desc });
+        engVocab.filter(c => c[0] === id).forEach(([, u, d], i) => {
+          const key = `words/${id}-${i + 1}`, title = u.replace(/^단어:\s*/, '');
+          LP.addTopic('words', id, { key, title, sub: `${d.sub} · ${d.words.length}단어`, kw: d.kw, sections: vocabSections(title, d.words), bank: vocabBank(key, d.words) });
+        });
+      }
+    },
+    adv: key => { const [g, n] = key.slice(6).split('-'), i = WORD_GRADES.findIndex(x => x[0] === g); const nx = WORD_GRADES[i + 1]; return nx ? `words/${nx[0]}-${n}` : null; },
+    defaultLevel: (band, n) => (band === '초' ? 'm1' : band === '중' ? 'm' + Math.min(n, 3) : band === '고' ? 'h' + Math.min(n, 3) : 'h3'),
+  });
+
   const POS = { n: '명사', v: '동사', adj: '형용사', adv: '부사', prep: '전치사', conj: '접속사', phr: '숙어' };
   const vcard = x => `<div class="vcard"><div class="vem">${x.em || '🔤'}</div><div class="vw">${say(x.w, 'en')}<b>${esc(x.w)}</b><small>${POS[x.pos] || esc(x.pos)}</small></div><div class="vko">${esc(x.ko)}</div>`
     + `<div class="vex">${esc(x.ex[0])}<small>${esc(x.ex[1])}</small></div>${x.syn || x.ant ? `<div class="vsa">${x.syn ? `<span>≈ ${esc(x.syn)}</span>` : ''}${x.ant ? `<span>↔ ${esc(x.ant)}</span>` : ''}</div>` : ''}</div>`;
   function vocabSections(u, words) {
-    const name = u.replace(/^단어:\s*/, ''), per = Math.ceil(words.length / 3), out = [];
+    const name = u, per = Math.ceil(words.length / 3), out = [];
     for (let k = 0; k * per < words.length; k++) {
       const part = words.slice(k * per, (k + 1) * per);
-      out.push({ h: `${name} ${'①②③④'[k]} (${k * per + 1}~${k * per + part.length})`, p: k === 0 ? '그림을 먼저 보고 뜻을 떠올린 뒤, 🔊를 눌러 발음을 듣고 예문을 소리 내어 읽어 보세요.' : '그림 → 단어 → 뜻 → 예문 순서로 익혀요.', html: `<div class="vcards">${part.map(vcard).join('')}</div>` });
+      out.push({ h: `${name} ${'①②③④'[k]} (${k * per + 1}~${k * per + part.length})`, p: k === 0 ? '그림을 먼저 보고 뜻을 떠올린 뒤, 🔊를 눌러 발음을 듣고 예문을 소리 내어 읽어 보세요.' : '그림 → 단어 → 뜻 → 예문 순서로 익혀요.',
+        html: `<div class="vbar"><button class="btn small vhide-toggle" type="button"></button><span class="hint">가리기를 켜면 그림만 보여요. 카드를 눌러 정답을 확인해요.</span></div><div class="vcards">${part.map(vcard).join('')}</div>` });
     }
     out.push({ h: '한눈에 정리', p: '모르는 단어는 위로 돌아가 카드를 한 번 더 보고 문제로 넘어가요.', table: { head: ['그림', '단어', '뜻'], rows: words.map(x => [`<span class="vtem">${x.em || ''}</span>`, `<b>${esc(x.w)}</b> <small>${POS[x.pos] || ''}</small>`, esc(x.ko)]) } });
     return out;
