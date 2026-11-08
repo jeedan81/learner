@@ -18,7 +18,7 @@ http://localhost:8770 을 엽니다. 휴대폰·태블릿에서 쓰려면 GitHub
 | ➗ 수학 | 초5~고3 (8) | 74 | 원래 수학 앱 그대로: 개념·움직이는 그래프·문제 은행(난이도 1~5) |
 | 🔬 과학 | 초등, 중1~고3 (7) | 62 | 단원별 개념 설명 3~4개 + 문제 15개(난이도별 3개) 새로 작성, 기존 그림 문제·계산 문제 포함 |
 | 🏯 역사 | 초등·중등·고등·공무원 (4) | 36 | 시대 소개·사진 + 해설에서 뽑은 핵심 정리, 문제 3,294개(OX·순서 문제는 4지선다로 변환, 사료·그림 포함) |
-| 📘 영어 | 중1~고3 (6) | 48 | 내신·모의고사·수능 대비: 문법(어법)·어휘·독해 유형. 개념 설명(표·🔊 예문) + 문제 15개(난이도별 3개), 지문 문제는 모두 새로 쓴 글 |
+| 📘 영어 | 중1~고3 (6) | 48 + 단어 36 | 내신·모의고사·수능 대비: 문법(어법)·어휘·독해 유형. 개념 설명(표·🔊 예문) + 문제 15개(난이도별 3개), 지문 문제는 모두 새로 쓴 글. **단어 단원**: 학년마다 주제 6개 × 24단어(그림 카드·🔊·예문), 문제는 단어마다 5가지 자동 생성(그림 → 단어, 뜻 → 단어, 예문 빈칸, 듣고 뜻, 영영 풀이) |
 | 🗣️ 회화 | 초등·중등·고등·일반 (4) | 1,074 | 상황·미션 → 핵심 표현(🔊 듣기) → 문제(뜻·표현·빈칸·어순·듣기) → **AI와 말하기** → 정리. 영어/일본어 |
 
 - 수업 위쪽의 도입·개념·문제·정리(와 단계 칸)를 누르면 그 단계로 바로 간다. 정리는 문제를 다 푼 뒤에 열린다.
@@ -70,11 +70,11 @@ js/music.js                집중 음악(앱바 🎵): Web Audio로 소리를 �
 data/math/                 수학 단원·문제 은행 (원래 수학 앱 데이터)
 data/science/              questions.js·images.js(원래 과학 앱) + content-*.js(새 개념·문제) + figs.js(단원·낱말별 문제 그림), GUIDE.md·check.js(작성 기준·검사)
 data/history/              시대별 문제·그림·사진(원래 역사 앱). 사진이 없는 문제는 문제·해설의 유물·인물 이름으로 사진을 찾아 붙인다(js/subjects.js HIS_KW)
-data/english/              영어(입시) 단원: content-*.js, 작성 기준 GUIDE.md, 검사 check.js
+data/english/              영어(입시) 단원 content-*.js, 단어 단원 vocab-*.js, 작성 기준 GUIDE.md, 검사 check.js
 data/talk/                 상황 데이터·AI 모듈 api.js(원래 회화 앱, 오프라인 안내 추가)
 sw.js, precache.js         오프라인(precache.js는 tools/build-sw.js가 생성)
 ```
 
 과학 콘텐츠 검사: `node data/science/check.js data/science/content-*.js`
 
-영어 콘텐츠 검사: `node data/english/check.js data/english/content-*.js`
+영어 콘텐츠 검사: `node data/english/check.js data/english/content-*.js data/english/vocab-*.js`

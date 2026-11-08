@@ -181,11 +181,11 @@
   const ENG_GRADES = [['m1', '중1', '중학교 1학년 영어', '#1c9bd6', '기초 문법과 짧은 글 읽기'], ['m2', '중2', '중학교 2학년 영어', '#8e5bd8', '준동사·완료·비교와 내용 일치'],
     ['m3', '중3', '중학교 3학년 영어', '#e07a12', '관계사·분사·가정법과 요지·빈칸'], ['h1', '고1', '고등학교 1학년 영어', '#d9480f', '모의고사 대비: 어법·어휘·유형 독해'],
     ['h2', '고2', '고등학교 2학년 영어', '#2b6cb0', '특수 구문과 추론형 독해'], ['h3', '고3', '고3 · 수능 영어', '#7048c8', '수능 유형별 실전']];
-  const engContent = [];
+  const engContent = [], engVocab = [];
   LP.subject({
     id: 'english', name: '영어', emoji: '📘', color: '#1d4ed8', mascot: 'A+', desc: '중1~고3 · 문법·어휘·독해 유형(내신·수능)',
-    files: ['content-m12', 'content-m3h1', 'content-h2', 'content-h3'].map(f => `data/english/${f}.js`),
-    before() { window.ENG = { add: (g, u, d) => engContent.push([g, u, d]) }; },
+    files: ['content-m12', 'content-m3h1', 'content-h2', 'content-h3', 'vocab-m12', 'vocab-m3h1', 'vocab-h23'].map(f => `data/english/${f}.js`),
+    before() { window.ENG = { add: (g, u, d) => engContent.push([g, u, d]), vocab: (g, u, d) => engVocab.push([g, u, d]) }; },
     build() {
       for (const [id, short, name, color, desc] of ENG_GRADES) {
         LP.addGrade('english', { id, short, name, color, desc });
@@ -194,12 +194,47 @@
           const sections = d.sections.map(sec => (sec.ex ? { ...sec, html: (sec.html || '') + `<div class="phr">${sec.ex.map(([en, ko]) => `<div class="pr">${say(en, 'en')}<div><b>${esc(en)}</b><span>${esc(ko)}</span></div></div>`).join('')}</div>` } : sec));
           LP.addTopic('english', id, { key: `english/${id}-${i + 1}`, title: u, sub: d.sub, kw: d.kw, sections, bank: d.bank.map(q => ({ ...q })) });
         });
+        // 단어 단원: 그림 카드로 익히고, 문제는 단어 자료로 자동 생성
+        engVocab.filter(c => c[0] === id).forEach(([, u, d], i) => {
+          const key = `english/${id}-v${i + 1}`;
+          LP.addTopic('english', id, { key, title: u, sub: d.sub, kw: d.kw, sections: vocabSections(u, d.words), bank: vocabBank(key, d.words) });
+        });
       }
     },
     // 다음 학년의 같은 순서 단원을 선행 학습으로 추천
     adv: key => { const [g, n] = key.slice(8).split('-'), i = ENG_GRADES.findIndex(x => x[0] === g); const nx = ENG_GRADES[i + 1]; return nx ? `english/${nx[0]}-${n}` : null; },
     defaultLevel: (band, n) => (band === '초' ? 'm1' : band === '중' ? 'm' + Math.min(n, 3) : band === '고' ? 'h' + Math.min(n, 3) : 'h3'),
   });
+
+  const POS = { n: '명사', v: '동사', adj: '형용사', adv: '부사', prep: '전치사', conj: '접속사', phr: '숙어' };
+  const vcard = x => `<div class="vcard"><div class="vem">${x.em || '🔤'}</div><div class="vw">${say(x.w, 'en')}<b>${esc(x.w)}</b><small>${POS[x.pos] || esc(x.pos)}</small></div><div class="vko">${esc(x.ko)}</div>`
+    + `<div class="vex">${esc(x.ex[0])}<small>${esc(x.ex[1])}</small></div>${x.syn || x.ant ? `<div class="vsa">${x.syn ? `<span>≈ ${esc(x.syn)}</span>` : ''}${x.ant ? `<span>↔ ${esc(x.ant)}</span>` : ''}</div>` : ''}</div>`;
+  function vocabSections(u, words) {
+    const name = u.replace(/^단어:\s*/, ''), per = Math.ceil(words.length / 3), out = [];
+    for (let k = 0; k * per < words.length; k++) {
+      const part = words.slice(k * per, (k + 1) * per);
+      out.push({ h: `${name} ${'①②③④'[k]} (${k * per + 1}~${k * per + part.length})`, p: k === 0 ? '그림을 먼저 보고 뜻을 떠올린 뒤, 🔊를 눌러 발음을 듣고 예문을 소리 내어 읽어 보세요.' : '그림 → 단어 → 뜻 → 예문 순서로 익혀요.', html: `<div class="vcards">${part.map(vcard).join('')}</div>` });
+    }
+    out.push({ h: '한눈에 정리', p: '모르는 단어는 위로 돌아가 카드를 한 번 더 보고 문제로 넘어가요.', table: { head: ['그림', '단어', '뜻'], rows: words.map(x => [`<span class="vtem">${x.em || ''}</span>`, `<b>${esc(x.w)}</b> <small>${POS[x.pos] || ''}</small>`, esc(x.ko)]) } });
+    return out;
+  }
+  // 단어마다 5가지 문제: 그림→단어(그림 없으면 단어→뜻) · 뜻→단어 · 예문 빈칸 · 듣고 뜻 · 영영 풀이
+  function vocabBank(key, words) {
+    const bank = [];
+    const others = (x, f, seed, pool = words) => { const r = seeded(seed), cand = pool.filter(y => y !== x && f(y) && f(y) !== f(x)); const out = []; while (out.length < 3 && cand.length) { const v = f(cand.splice(Math.floor(r() * cand.length), 1)[0]); if (!out.includes(v)) out.push(v); } return out; };
+    const ask = (lv, q, right, wrong, why, seed) => { if (wrong.length < 3) return; const m = mix([right, ...wrong], 0, seed); bank.push({ lv, q, o: m.o.map(esc), a: m.a, why }); };
+    words.forEach((x, i) => {
+      const seed = key + i, why = `<b>${esc(x.w)}</b> (${POS[x.pos] || x.pos}) ${esc(x.ko)}<br>${esc(x.ex[0])} — ${esc(x.ex[1])}`;
+      if (x.em) ask(1, `그림이 나타내는 단어는?<div class="vpic">${x.em}</div>`, x.w, others(x, y => y.w, seed + 'a', words.filter(y => y.em)), why, seed + 'a1');
+      else ask(1, `다음 단어의 뜻은?<div class="big">${say(x.w, 'en')} ${esc(x.w)}</div>`, x.ko, others(x, y => y.ko, seed + 'a'), why, seed + 'a1');
+      ask(2, `‘${esc(x.ko)}’에 알맞은 영어 단어는?`, x.w, others(x, y => y.w, seed + 'b'), why, seed + 'b1');
+      const re = new RegExp('(^|[^A-Za-z])(' + x.w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')(?![A-Za-z])', 'i');
+      if (re.test(x.ex[0])) ask(3, `빈칸에 알맞은 단어는?<div class="big">${esc(x.ex[0].replace(re, '$1＿＿＿'))}</div><small>(${esc(x.ex[1])})</small>`, x.w, others(x, y => y.w, seed + 'c', words.filter(y => y.pos === x.pos).length > 4 ? words.filter(y => y.pos === x.pos) : words), why, seed + 'c1');
+      ask(4, `🔊를 눌러 잘 듣고, 들은 단어의 뜻을 고르세요.<div class="big">${say(x.w, 'en')} <span class="muted">듣기</span></div>`, x.ko, others(x, y => y.ko, seed + 'd'), why, seed + 'd1');
+      ask(5, `다음 영영 풀이에 알맞은 단어는?<div class="passage">${esc(x.def)}</div>`, x.w, others(x, y => y.w, seed + 'e'), why, seed + 'e1');
+    });
+    return bank;
+  }
 
   /* ═════════ 🗣️ 회화 ═════════ */
   const TALK_COLORS = { elem: '#e8590c', middle: '#d6336c', high: '#1971c2', adult: '#495057' };
