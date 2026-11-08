@@ -46,6 +46,20 @@
     ['h1', '고1', '고등학교 1학년', '#d9480f', '통합과학: 물질의 규칙성, 역학, 생명·지구 시스템, 환경'], ['h2', '고2', '고등학교 2학년', '#2b6cb0', '물리학·화학: 역학, 전자기, 파동, 원자, 화학 결합'],
     ['h3', '고3', '고등학교 3학년', '#7048c8', '생명과학·지구과학: 항상성, 유전, 지구 변화, 별과 우주']];
   const sciContent = {};
+  // 개념 설명 그림: 단원 자료의 figId(fig2Id) → 그림. 없으면 설명 글에 맞는 그림(rules), 그래도 없으면 첫 칸에 단원 그림
+  function sciSectionFigs(sections, SF, unitId) {
+    const used = new Set(), raw = (k, cap) => ({ type: 'raw', html: SF.draw[k](), cap: cap || '' });
+    sections.forEach((sec, i) => {
+      if (sec.figId && SF.draw[sec.figId]) { sections[i] = { ...sec, fig: raw(sec.figId, sec.figCap) }; used.add(sec.figId); }
+      if (sec.fig2Id && SF.draw[sec.fig2Id]) { sections[i] = { ...sections[i], fig2: raw(sec.fig2Id, sec.fig2Cap) }; used.add(sec.fig2Id); }
+    });
+    sections.forEach((sec, i) => {
+      if (sec.fig) return;
+      const t = LPfig.plain((sec.h || '') + ' ' + [].concat(sec.p || []).join(' ')), hit = (SF.rules || []).find(([re, k]) => re.test(t) && !used.has(k) && SF.draw[k]);
+      const k = hit ? hit[1] : i === 0 && unitId && !used.has(unitId) && SF.draw[unitId] ? unitId : null;
+      if (k) { sections[i] = { ...sec, fig: raw(k) }; used.add(k); }
+    });
+  }
   LP.subject({
     id: 'science', name: '과학', emoji: '🔬', color: '#0b9e6f', mascot: '⚛', desc: '초등~고3 · 개념 설명과 실험·그림 문제',
     files: ['questions', 'images', 'figs', 'content-e1', 'content-e2', 'content-m12', 'content-m3', 'content-h1', 'content-h2', 'content-h3'].map(f => `data/science/${f}.js`),
@@ -73,7 +87,8 @@
           bank.forEach((q, j) => (bank[j] = sciFig(id, u)(q)));
           const sections = (c.sections || []).slice();
           const pics = [...new Set(old.filter(q => q.img && IMG[q.img]).map(q => q.img))];
-          if (pics.length && sections.length) sections[sections.length - 1] = { ...sections[sections.length - 1], fig: { type: 'raw', html: IMG[pics[0]](), cap: '그림으로 확인해 보세요' } };
+          if (pics.length && sections.length && !sections[sections.length - 1].figId) sections[sections.length - 1] = { ...sections[sections.length - 1], fig: { type: 'raw', html: IMG[pics[0]](), cap: '그림으로 확인해 보세요' } };
+          sciSectionFigs(sections, SF, SF.units[id + '|' + u]);
           if (!sections.length) sections.push({ h: '핵심 정리', p: '<ul class="facts">' + old.map(q => `<li>${esc(q.ex)}</li>`).join('') + '</ul>' });
           LP.addTopic('science', id, { key: `science/${id}-${i + 1}`, title: u, sub: c.sub || `${short} 과학`, kw: c.kw || [u], sections, bank });
         });
@@ -97,7 +112,7 @@
   const HIS_NAMES = { elem: ['초등', '초등 한국사'], mid: ['중등', '중학교 역사'], high: ['고등', '고등학교 한국사'], gong: ['공무원', '공무원·한국사능력검정'] };
   LP.subject({
     id: 'history', name: '역사', emoji: '🏯', color: '#7b3fb8', mascot: '史', desc: '선사~현대 · 시대별 개념과 사료 문제',
-    files: ['data-elem', 'data-mid', 'data-high', 'data-gong', 'images', 'photos'].map(f => `data/history/${f}.js`),
+    files: ['data-elem', 'data-mid', 'data-high', 'data-gong', 'images', 'photos', 'notes'].map(f => `data/history/${f}.js`),
     build() {
       const DATA = window.HISTORY_DATA || {}, IM = window.HISTORY_IMAGES || {}, PH = window.HISTORY_PHOTOS || {};
       const pic = id => {
@@ -148,6 +163,12 @@
             const list = uniq(ex(d)).slice(0, n);
             if (list.length) sections.push({ h, p: `<ul class="facts">${list.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` });
           });
+          // 연표·정리표(data/history/notes.js)와, 이 단원 문제에 나오는 유물·인물 사진 모음
+          const note = (window.HISTORY_NOTES || {})[`${lv}/${ch.id}`];
+          if (note && note.timeline && note.timeline.length) sections.splice(1, 0, { h: '연표로 보기', html: LPfig.timeline(note.timeline) });
+          if (note) (note.tables || []).forEach(tb => sections.push({ h: tb.h, table: { head: tb.head.map(esc), rows: tb.rows.map(r => r.map(esc)), cap: tb.cap ? esc(tb.cap) : '' } }));
+          const more = uniq(ch.questions.map(q => (q.img && PH[q.img] ? q.img : autoPic(q, ''))).filter(id => id && PH[id] && !photos.includes(id))).slice(0, 6);
+          if (more.length) sections.push({ h: '사진으로 보는 문화유산과 인물', html: `<div class="pics">${more.map(id => `<figure><img src="data/history/${PH[id].src}" alt="${esc(PH[id].alt)}" loading="lazy"><figcaption>${esc(PH[id].topic || '')}<br><small>${esc(PH[id].author)} · ${esc(PH[id].license)}</small></figcaption></figure>`).join('')}</div>` });
           LP.addTopic('history', lv, { key, title: ch.title, sub: `${ch.period || ''} · ${HIS_NAMES[lv][0]}`, kw: [ch.title], sections, bank });
         }
       }
@@ -187,7 +208,7 @@
   const say = (text, lang) => `<button class="say" data-say="${esc(text)}" data-lang="${lang}" aria-label="듣기">🔊</button>`;
   function talkSections(s, lc) {
     return [
-      { h: '이런 상황이에요', p: `${esc(s.situation)}<br><br><b>장소</b> ${esc(s.place)}<br><b>상대(AI)</b> ${esc(lc.ai)}<br><b>나</b> ${esc(s.user)}`,
+      { h: '이런 상황이에요', html: LPfig.talkScene(s, lc), p: `${esc(s.situation)}<br><br><b>장소</b> ${esc(s.place)}<br><b>상대(AI)</b> ${esc(lc.ai)}<br><b>나</b> ${esc(s.user)}`,
         table: { head: ['이 대화의 미션'], rows: s.missions.map((m, i) => [`${i + 1}. ${esc(m)}`]) } },
       { h: '핵심 표현', p: '🔊를 눌러 듣고 소리 내어 따라 해 보세요.',
         html: `<div class="phr">${lc.phrases.map(([f, ko]) => `<div class="pr">${say(f, lc.lang)}<div><b>${esc(f)}</b><span>${esc(ko)}</span></div></div>`).join('')}</div>` },

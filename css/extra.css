@@ -145,3 +145,9 @@ body{background:var(--paper)}
 .scene-tx{display:grid;gap:2px;min-width:0}
 .scene-tx b,.q .qt .scene-tx b{font-size:14.5px;color:var(--ink);font-family:var(--f-body);margin:0}
 .scene-tx small{font-size:12.5px;color:var(--muted);line-height:1.4}
+
+/* 역사 연표(js/figs.js timeline) */
+.tl{list-style:none;margin:6px 0 0;padding:0 0 0 14px;border-left:3px solid var(--gc,var(--accent));display:grid;gap:10px}
+.tl li{position:relative;display:grid;grid-template-columns:minmax(78px,auto) 1fr;gap:10px;align-items:baseline;font-size:14px;line-height:1.45}
+.tl li::before{content:"";position:absolute;left:-24px;top:5px;width:11px;height:11px;border-radius:50%;background:var(--card);border:3px solid var(--gc,var(--accent))}
+.tl b{font-family:var(--f-mono);font-size:12.5px;color:var(--gc,var(--accent));white-space:nowrap}

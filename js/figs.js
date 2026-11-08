@@ -415,6 +415,265 @@
     if (/^h2-seq|^h3-series/.test(id)) { const m = t.match(/(-?\d+(?:\.\d+)?(?:\s*,\s*-?\d+(?:\.\d+)?){2,5})\s*,\s*(?:…|\.\.\.)/); if (m) return seqFig(m[1].split(',').map(Number)); }
     if (/^e6-graph/.test(id)) { const p = n(/(\d+)\s*%/); if (p && /원그래프/.test(t)) return pieFig(p); }
     if (/^e5-fracadd|^e5-fracmul|^e6-fracdiv/.test(id)) { const fs = [...t.matchAll(/(\d+)\s*\/\s*(\d+)/g)].map(m => [+m[1], +m[2]]); const g = fracFig(fs); if (g) return g; }
+    return math2(id, t, ts);
+  }
+
+  /* ───────── 그림 더(식·수·셈) ───────── */
+  // x, y 두 문자를 쓰는 식 → 함수 f(x, y). 숫자·x·y·사칙연산·괄호·거듭제곱만
+  function toFnXY(expr) {
+    let e = supFix(expr).replace(/\s+/g, '').replace(/×/g, '*').replace(/÷/g, '/');
+    if (!/^[0-9xy+\-*/().^]+$/.test(e)) return null;
+    e = e.replace(/(\d|x|y|\))(?=(x|y|\())/g, '$1*').replace(/\^(\d+)/g, '**$1').replace(/(^|\()-/g, '$10-');
+    try { const f = new Function('x', 'y', `"use strict";return (${e});`); return isFinite(f(1.3, 0.7)) ? f : null; } catch (err) { return null; }
+  }
+  function linOf(eq) { // "x + 2y = 7" → y를 x의 함수로. 일차식이 아니면 null
+    const [l, r] = eq.split('='); if (r == null || !/y/.test(eq)) return null;
+    const L = toFnXY(l), R = toFnXY(r); if (!L || !R) return null;
+    const g = (x, y) => L(x, y) - R(x, y), c0 = g(0, 0), a = g(1, 0) - c0, b = g(0, 1) - c0;
+    if (Math.abs(b) < 1e-9 || Math.abs(g(2, 3) - (c0 + 2 * a + 3 * b)) > 1e-6) return null;
+    return x => -(a * x + c0) / b;
+  }
+  const fmtB = v => (Math.abs(v - Math.E) < 1e-9 ? 'e' : fmt(v));
+  function seededRand(n) { let h = n; return () => ((h = (h * 16807) % 2147483647) / 2147483647); }
+
+  function balanceFig(L, R) {
+    const box = (x, s) => `<rect x="${x - 62}" y="58" width="124" height="34" rx="8" fill="${SOFT}" stroke="${ACC}"/>` + tx(x, 75, s, { b: 1, s: s.length > 12 ? 12 : 15 });
+    return svg(320, 190, ln(160, 60, 160, 165) + path('M130 168 L190 168 L160 150 Z', { f: SOFT }) + ln(50, 100, 270, 100, { w: 3 }) + dot(160, 100, INK, 5)
+      + box(85, L) + box(235, R) + tx(160, 40, '=', { s: 22, b: 1, c: HI }), '양팔 저울');
+  }
+  function areaModelFig(a, b) { // (x + a)(x + b) 넓이 모형: 변에만 길이를 적는다
+    const X = 120, k = 18, A = a * k, B = b * k, x0 = 160 - (X + A) / 2, y0 = 105 - (X + B) / 2 + 6;
+    let s = `<rect x="${x0}" y="${y0}" width="${X + A}" height="${X + B}" fill="${SOFT}"/>` + ln(x0 + X, y0, x0 + X, y0 + X + B, { c: MUTED }) + ln(x0, y0 + X, x0 + X + A, y0 + X, { c: MUTED });
+    s += tx(x0 + X / 2, y0 - 12, 'x', { c: ACC, b: 1 }) + tx(x0 + X + A / 2, y0 - 12, String(a), { c: ACC, b: 1 }) + tx(x0 - 12, y0 + X / 2, 'x', { c: ACC, b: 1 }) + tx(x0 - 12, y0 + X + B / 2, String(b), { c: ACC, b: 1 });
+    return svg(320, 220, s, '넓이로 보는 다항식의 곱');
+  }
+  function sqrtSquareFig(n) {
+    return svg(320, 190, `<rect x="95" y="20" width="130" height="130" fill="${SOFT}"/>` + tx(160, 85, `넓이 ${n}`, { b: 1, c: ACC }) + tx(160, 168, '한 변의 길이 = ?', { c: HI, b: 1 }), '넓이가 주어진 정사각형');
+  }
+  function decGridFig(a, b) { // 0.a × 0.b: 10×10 모눈에서 가로 a칸, 세로 b칸
+    const c = 13, x0 = 95, y0 = 22; let s = '';
+    for (let i = 0; i < 10; i++) for (let j = 0; j < 10; j++) { const inA = j < a, inB = i < b; s += `<rect x="${x0 + j * c}" y="${y0 + i * c}" width="${c}" height="${c}" fill="${inA && inB ? ACC : inA ? ACC : inB ? HI : 'none'}" fill-opacity="${inA && inB ? 0.8 : 0.22}" stroke="${LINE}" stroke-width="1"/>`; }
+    s += `<rect x="${x0}" y="${y0}" width="${10 * c}" height="${10 * c}" stroke="${INK}"/>` + tx(x0 + (a * c) / 2, y0 + 10 * c + 14, `0.${a}`, { c: ACC, b: 1, s: 13 }) + tx(x0 - 18, y0 + (b * c) / 2, `0.${b}`, { c: ACC, b: 1, s: 13 });
+    return svg(320, 175, s, '소수의 곱 모눈');
+  }
+  function numberChartFig(N) {
+    const per = 10, rows = Math.ceil(N / per), c = 27; let s = '';
+    for (let i = 0; i < N; i++) { const x = 25 + (i % per) * c, y = 12 + Math.floor(i / per) * c; s += `<rect x="${x}" y="${y}" width="${c}" height="${c}" fill="${SOFT}" stroke="${LINE}" stroke-width="1"/>` + tx(x + c / 2, y + c / 2 + 1, String(i + 1), { s: 12 }); }
+    return svg(320, rows * c + 24, s, `1부터 ${N}까지의 수`);
+  }
+  function machineFig(rule) {
+    const arrow = x => ln(x, 60, x + 28, 60, { c: MUTED }) + path(`M${x + 22} 54 L${x + 30} 60 L${x + 22} 66`, { c: MUTED });
+    return svg(320, 120, `<circle cx="40" cy="60" r="22" fill="${SOFT}"/>` + tx(40, 61, '○', { s: 20 }) + arrow(64)
+      + `<rect x="98" y="30" width="124" height="60" rx="10" fill="${SOFT}" stroke="${ACC}"/>` + tx(160, 61, rule, { b: 1, c: ACC, s: rule.length > 9 ? 13 : 16 })
+      + arrow(224) + `<circle cx="280" cy="60" r="22" fill="${SOFT}"/>` + tx(280, 61, '△', { s: 20 }), '대응 관계 상자');
+  }
+  function pairTableFig(xs, ys) {
+    const n = Math.max(xs.length, ys.length), w = Math.min(54, 250 / n), x0 = 160 - ((n + 1) * w) / 2; let s = '';
+    [['○', xs], ['△', ys]].forEach(([h, v], r) => {
+      s += `<rect x="${r1(x0)}" y="${20 + r * 36}" width="${r1(w)}" height="36" fill="${SOFT}" stroke="${INK}" stroke-width="1"/>` + tx(x0 + w / 2, 38 + r * 36, h, { b: 1 });
+      for (let i = 0; i < n; i++) s += `<rect x="${r1(x0 + (i + 1) * w)}" y="${20 + r * 36}" width="${r1(w)}" height="36" fill="none" stroke="${INK}" stroke-width="1"/>` + tx(x0 + (i + 1.5) * w, 38 + r * 36, v[i] != null ? fmt(v[i]) : '', { s: 14 });
+    });
+    return svg(320, 100, s, '대응표');
+  }
+  function complexFig(zs) {
+    const R = Math.max(4, ...zs.flatMap(z => [Math.abs(z[0]), Math.abs(z[1])]).map(Math.ceil)); if (R > 10) return '';
+    return plane(R, (X, Y) => zs.map(([a, b], i) => dot(X(a), Y(b), i ? ACC : HI, 4.5) + tx(X(a) + 7, Y(b) - 11, `${fmt(a)}${b < 0 ? '−' : '+'}${Math.abs(b) === 1 ? '' : fmt(Math.abs(b))}i`, { a: 'start', s: 12, b: 1 })).join(''), '복소평면')
+      .replace('>x</text>', '>실수</text>').replace('>y</text>', '>허수</text>');
+  }
+  function matrixFig(ms) {
+    let x = 10, s = '';
+    for (const { name, rows } of ms) {
+      const r = rows.length, c = Math.max(...rows.map(q => q.length)), cw = 30, h = r * 28 + 8;
+      if (name) { s += tx(x, 60, name + ' =', { a: 'start', b: 1 }); x += 42; }
+      const y0 = 60 - h / 2;
+      s += path(`M${x + 8} ${y0} L${x} ${y0} L${x} ${y0 + h} L${x + 8} ${y0 + h}`) + path(`M${x + c * cw + 8} ${y0} L${x + c * cw + 16} ${y0} L${x + c * cw + 16} ${y0 + h} L${x + c * cw + 8} ${y0 + h}`);
+      rows.forEach((q, i) => q.forEach((v, j) => (s += tx(x + 8 + j * cw + cw / 2, y0 + 18 + i * 28, v.replace('-', '−'), { s: 15 }))));
+      x += c * cw + 34;
+    }
+    return x > 330 ? '' : svg(Math.max(x, 200), 120, s, '행렬');
+  }
+  function tilesFig(letters) {
+    const n = letters.length, w = Math.min(40, 290 / n), x0 = 160 - (n * w) / 2;
+    return svg(320, 80, letters.map((L, i) => `<rect x="${r1(x0 + i * w + 2)}" y="16" width="${r1(w - 4)}" height="46" rx="7" fill="${SOFT}" stroke="${ACC}"/>` + tx(x0 + i * w + w / 2, 40, L, { b: 1, s: 18 })).join(''), '문자 카드');
+  }
+  const EMO = { 셔츠: '👕', 바지: '👖', 모자: '🧢', 신발: '👟', 치마: '👗', 빵: '🍞', 음료: '🥤', 과일: '🍎', 사탕: '🍬', 책: '📘', 연필: '✏️' };
+  function iconsFig(groups) { // [[그림, 개수, 이름]]
+    if (!groups.some(g => g[1] > 0)) return '';
+    let y = 14, s = '';
+    groups.forEach(([e, k, name]) => { s += tx(14, y + 15, name || '', { a: 'start', s: 13, c: MUTED }); for (let i = 0; i < Math.min(k, 10); i++) s += `<text x="${62 + i * 25}" y="${y + 23}" font-size="20" stroke="none">${e}</text>`; y += 38; });
+    return svg(320, y + 6, s, '경우의 수 그림');
+  }
+  function dotsOfFig(N, K) { // N개 중 K개
+    if (N > 60 || K > N) return '';
+    const per = 10, rows = Math.ceil(N / per); let s = '';
+    for (let i = 0; i < N; i++) s += `<circle cx="${43 + (i % per) * 26}" cy="${20 + Math.floor(i / per) * 26}" r="9" fill="${i < K ? ACC : SOFT}" stroke="${i < K ? ACC : LINE}"/>`;
+    return svg(320, rows * 26 + 14, s, `${N}개 중 ${K}개`);
+  }
+  function unitCircleFig(deg, label) {
+    const cx = 160, cy = 105, R = 75, t = rad(-deg), P = [cx + R * Math.cos(t), cy + R * Math.sin(t)];
+    let s = ln(60, cy, 260, cy, { c: MUTED, w: 1.5 }) + ln(cx, 195, cx, 15, { c: MUTED, w: 1.5 }) + `<circle cx="${cx}" cy="${cy}" r="${R}" stroke="${LINE}"/>` + tx(268, cy, 'x', { c: MUTED }) + tx(cx, 8, 'y', { c: MUTED });
+    // 각은 x축에서 시계 반대 방향으로(180°가 넘어도 그 방향 그대로)
+    const r = 22, d = ((deg % 360) + 360) % 360, E = [cx + r * Math.cos(t), cy + r * Math.sin(t)], m = rad(-d / 2);
+    s += ln(cx, cy, P[0], P[1], { c: ACC, w: 2.5 }) + dot(P[0], P[1], ACC) + path(`M${cx + r} ${cy} A${r} ${r} 0 ${d > 180 ? 1 : 0} 0 ${r1(E[0])} ${r1(E[1])}`, { c: HI }) + tx(cx + 40 * Math.cos(m), cy + 40 * Math.sin(m), label || 'θ', { c: HI, s: 13, b: 1 });
+    return svg(320, 205, s, '단위원과 각');
+  }
+  function triSASFig(b, c, A) {
+    const P = [70, 165], Q = [270, 165], k = 200 / c, ang = rad(A), R = [70 + b * k * Math.cos(ang), 165 - b * k * Math.sin(ang)];
+    if (R[1] < 15) return '';
+    return svg(320, 200, poly([P, Q, R]) + tx(P[0] - 12, P[1] + 6, 'A') + tx(Q[0] + 12, Q[1] + 6, 'B') + tx(R[0], R[1] - 12, 'C') + side(P, Q, 'c = ' + fmt(c), -18) + side(P, R, 'b = ' + fmt(b), 16) + side(Q, R, 'a = ?', -16, HI) + angMark(P, Q, R, A + '°', 26), '두 변과 끼인각');
+  }
+  function shadedFig(f, a, b) { // 정적분: 구간 [a, b]를 칠한다
+    const R = Math.max(Math.abs(Math.min(a, 0) - 0.5), Math.abs(Math.max(b, 1) + 0.5)), S = 180, c = S / 2 + 20, kx = S / (2 * R);
+    const ys = []; for (let i = 0; i <= 120; i++) { const y = f(-R + (2 * R * i) / 120); if (isFinite(y)) ys.push(y); }
+    if (ys.length < 30) return '';
+    const Ry = Math.min(Math.max(...ys.map(Math.abs), 1) * 1.1, 12), ky = S / (2 * Ry), X = x => c + x * kx, Y = y => c - Math.max(-Ry, Math.min(Ry, y)) * ky;
+    let area = `M${r1(X(a))} ${r1(Y(0))}`; for (let i = 0; i <= 60; i++) { const x = a + ((b - a) * i) / 60; area += `L${r1(X(x))} ${r1(Y(f(x)))}`; } area += `L${r1(X(b))} ${r1(Y(0))}Z`;
+    let d = '', pen = false; for (let i = 0; i <= 300; i++) { const x = -R + (2 * R * i) / 300, y = f(x); if (isFinite(y) && Math.abs(y) <= Ry) { d += (pen ? 'L' : 'M') + r1(X(x)) + ' ' + r1(Y(y)); pen = true; } else pen = false; }
+    let s = `<path d="${area}" fill="${ACC}" fill-opacity=".25" stroke="none"/>` + ln(c - S / 2 - 6, c, c + S / 2 + 8, c, { c: MUTED, w: 1.5 }) + ln(c, c + S / 2 + 6, c, c - S / 2 - 8, { c: MUTED, w: 1.5 }) + tx(c + S / 2 + 14, c, 'x', { c: MUTED }) + tx(c, c - S / 2 - 14, 'y', { c: MUTED });
+    s += path(d, { c: ACC, w: 2.5 }) + tx(X(a), c + 14, fmtB(a), { s: 12, b: 1 }) + (b !== a ? tx(X(b), c + 14, fmtB(b), { s: 12, b: 1 }) : '');
+    return svg(S + 40, S + 40, s, '정적분과 넓이');
+  }
+  function limitFig(f, a) {
+    const g = graphFig([f], 5); if (!g || a == null || Math.abs(a) > 5) return g;
+    const S = 180, c = S / 2 + 20, X = c + a * (S / 10);
+    return g.replace(/<\/svg>$/, ln(X, 20, X, S + 20, { d: 1, c: HI }) + tx(X + 4, c + 14, 'x=' + fmt(a), { a: 'start', s: 12, c: HI, b: 1 }) + '</svg>');
+  }
+  function space3dFig(pts) {
+    const M = Math.max(...pts.flat().map(Math.abs), 3); if (M > 16) return '';
+    const O = [150, 135], k = 12 * Math.min(1, 7 / M), Q = ([x, y, z]) => [O[0] + y * k - x * k * 0.55, O[1] - z * k + x * k * 0.45];
+    let s = ln(O[0], O[1], O[0] + 140, O[1], { c: MUTED, w: 1.5 }) + ln(O[0], O[1], O[0], 12, { c: MUTED, w: 1.5 }) + ln(O[0], O[1], O[0] - 75, O[1] + 61, { c: MUTED, w: 1.5 }) + tx(O[0] + 150, O[1], 'y', { c: MUTED }) + tx(O[0], 6, 'z', { c: MUTED }) + tx(O[0] - 83, O[1] + 66, 'x', { c: MUTED }) + tx(O[0] + 8, O[1] + 12, 'O', { c: MUTED, s: 12 });
+    pts.forEach((p, i) => { const q = Q(p), base = Q([p[0], p[1], 0]); s += ln(q[0], q[1], base[0], base[1], { d: 1, c: LINE }) + dot(q[0], q[1], i ? ACC : HI, 4.5) + tx(q[0] + 6, q[1] - 10, `(${p.map(fmt).join(', ')})`, { a: 'start', s: 12, b: 1 }); });
+    return svg(320, 210, s, '공간좌표 위의 점');
+  }
+  function segFig(parts) { // [['AB', 6], ['BC', 4]] → A—B—C
+    const tot = parts.reduce((a, p) => a + p[1], 0), k = 260 / tot; let x = 30, s = ln(30, 70, 290, 70, { w: 2.5 }) + dot(30, 70) + tx(30, 50, parts[0][0][0], { b: 1 });
+    parts.forEach(([nm, L]) => { const x2 = x + L * k; s += dot(x2, 70) + tx(x2, 50, nm[1], { b: 1 }) + tx((x + x2) / 2, 92, fmt(L) + ' cm', { c: ACC, b: 1, s: 13 }); x = x2; });
+    return svg(320, 110, s, '한 직선 위의 점');
+  }
+  function chordFig(lb) {
+    const cx = 160, cy = 100, R = 80, y = 145, h = Math.sqrt(R * R - (y - cy) ** 2), A = [cx - h, y], B = [cx + h, y], M = [cx, y];
+    let s = `<circle cx="${cx}" cy="${cy}" r="${R}"/>` + ln(A[0], A[1], B[0], B[1]) + ln(cx, cy, M[0], M[1], { d: 1, c: MUTED }) + rightMark(M, [cx, cy], B, 9) + dot(cx, cy) + tx(cx + 10, cy - 6, 'O') + tx(A[0] - 12, A[1] + 4, 'A') + tx(B[0] + 12, B[1] + 4, 'B') + tx(M[0], M[1] + 16, 'M');
+    if (lb.r) s += ln(cx, cy, A[0], A[1], { c: ACC }) + side([cx, cy], A, lb.r, 12);
+    if (lb.am) s += side(A, M, lb.am, 14);
+    if (lb.d) s += tx(cx + 8, (cy + y) / 2, lb.d, { a: 'start', c: ACC, b: 1 });
+    return svg(320, 200, s, '원의 현과 수선');
+  }
+  function twoInscribedFig(deg) {
+    const cx = 160, cy = 105, R = 82, pt = d => [cx + R * Math.cos(rad(d)), cy + R * Math.sin(rad(d))], A = pt(150), B = pt(30), P = pt(-120), Q = pt(-60);
+    return svg(320, 210, `<circle cx="${cx}" cy="${cy}" r="${R}"/>` + ln(A[0], A[1], B[0], B[1], { c: LINE }) + [P, Q].map(X => ln(X[0], X[1], A[0], A[1]) + ln(X[0], X[1], B[0], B[1])).join('') + tx(A[0] - 12, A[1] + 6, 'A') + tx(B[0] + 12, B[1] + 6, 'B') + tx(P[0] - 8, P[1] - 12, 'P') + tx(Q[0] + 8, Q[1] - 12, 'Q') + angMark(P, A, B, deg + '°', 26) + angMark(Q, A, B, '?', 26, ACC), '한 호에 대한 원주각');
+  }
+  function triParFig(ad, db, de) {
+    const A = [160, 25], B = [60, 175], C = [270, 175], t = ad / (ad + db), D = [A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t], E = [A[0] + (C[0] - A[0]) * t, A[1] + (C[1] - A[1]) * t];
+    return svg(320, 200, poly([A, B, C]) + ln(D[0], D[1], E[0], E[1], { c: ACC }) + tx(A[0], A[1] - 12, 'A') + tx(B[0] - 12, B[1] + 6, 'B') + tx(C[0] + 12, C[1] + 6, 'C') + tx(D[0] - 12, D[1], 'D') + tx(E[0] + 12, E[1], 'E')
+      + side(A, D, String(ad), 14) + side(D, B, String(db), 14) + tx((D[0] + E[0]) / 2, D[1] - 10, String(de), { c: ACC, b: 1 }) + tx(165, 190, '?', { c: HI, b: 1 }), '평행선과 닮음');
+  }
+  function simTriFig(a, b) {
+    const k = 120 / Math.max(a, b), T = (x, s) => { const w = s * k; return poly([[x, 170], [x + w, 170], [x + w * 0.35, 170 - w * 0.8]]); };
+    return svg(320, 195, T(40, a) + T(60 + a * k, b) + tx(40 + (a * k) / 2, 184, String(a), { c: ACC, b: 1 }) + tx(60 + a * k + (b * k) / 2, 184, String(b), { c: ACC, b: 1 }), '닮은 두 도형');
+  }
+  function distBarsFig(ps, labels) {
+    const n = ps.length, mx = Math.max(...ps), bw = Math.min(36, 240 / n - 4); let s = ln(30, 165, 300, 165, { c: MUTED });
+    ps.forEach((p, i) => { const x = 40 + (250 * (i + 0.5)) / n - bw / 2, h = (p / mx) * 125; s += `<rect x="${r1(x)}" y="${r1(165 - h)}" width="${r1(bw)}" height="${r1(h)}" rx="3" fill="${ACC}" fill-opacity=".7" stroke="none"/>` + (labels ? tx(x + bw / 2, 180, labels[i], { s: 11, c: MUTED }) : ''); });
+    return svg(320, 190, s, '확률분포');
+  }
+  function scatterFig(sign) {
+    let s = ln(30, 170, 300, 170, { c: MUTED }) + ln(30, 170, 30, 15, { c: MUTED }); const r = seededRand(7);
+    for (let i = 0; i < 26; i++) { const x = r(), y = sign ? (sign > 0 ? x : 1 - x) + (r() - 0.5) * 0.3 : r(); s += dot(40 + x * 250, 160 - Math.max(0, Math.min(1, y)) * 135, ACC, 4); }
+    return svg(320, 185, s, '산점도');
+  }
+  function geoSeriesFig(r) {
+    let x = 20, w = 180, s = ''; const cols = [ACC, HI, GOOD];
+    for (let i = 0; i < 8 && w > 1; i++) { s += `<rect x="${r1(x)}" y="35" width="${r1(w)}" height="36" fill="${cols[i % 3]}" fill-opacity=".45" stroke="${INK}" stroke-width="1"/>`; x += w; w *= r; }
+    return svg(320, 100, s + tx(160, 88, '끝없이 더하면?', { c: MUTED, s: 12 }), '등비급수 막대');
+  }
+  function bandFig(total, part) {
+    const k = 280 / total;
+    return svg(320, 90, `<rect x="20" y="25" width="280" height="36" fill="${SOFT}" stroke="${INK}" stroke-width="1"/><rect x="20" y="25" width="${r1(part * k)}" height="36" fill="${ACC}" fill-opacity=".6" stroke="${INK}" stroke-width="1"/>` + tx(20 + (part * k) / 2, 78, fmt(part) + ' cm', { c: ACC, b: 1, s: 12 }) + tx(160, 12, `전체 ${fmt(total)} cm`, { s: 12, c: MUTED }), '띠그래프');
+  }
+
+  // 1차(math)에서 그림을 못 찾은 문제: 단원별로 식·수·셈을 읽어 그린다
+  function math2(id, t, ts) {
+    const n = re => val(t, re);
+    if (/^e5-decmul/.test(id)) { const m = t.match(/(?:^|[^\d.])0\.(\d)\s*×\s*0\.(\d)(?![\d])/); if (m) return decGridFig(+m[1], +m[2]); }
+    if (/^e5-divisor/.test(id)) { const m = t.match(/1부터\s*(\d+)\s*까지/); if (m && +m[1] <= 50) return numberChartFig(+m[1]); }
+    if (/^e5-pattern/.test(id)) {
+      const tb = t.match(/○(?:가|이)\s*([\d,\s]+?)\s*일 때\s*△(?:가|이|는)\s*([\d,\s]+?)\s*(?:이|라|입|일)/); if (tb) return pairTableFig(tb[1].split(',').map(Number), tb[2].split(',').map(Number));
+      const m = t.match(/△\s*=\s*○\s*([×÷+\-]\s*\d+(?:\s*[+\-×÷]\s*\d+)?)/); if (m) return machineFig(m[1].replace(/-/g, '−'));
+    }
+    if (/^e6-ratio|^e6-graph/.test(id)) {
+      const m = t.match(/(\d+)\s*명\s*중\s*\D{0,12}?(\d+)\s*명/); if (m) return dotsOfFig(+m[1], +m[2]);
+      const b = t.match(/띠그래프[^\d]*?(\d+)\s*cm[^\d]*?(\d+)\s*cm/); if (b) return bandFig(+b[1], +b[2]);
+    }
+    if (/^m1-lineq/.test(id)) { const m = ts.match(/([0-9x+\-*/().^ ]*x[0-9x+\-*/().^ ]*)=\s*([0-9x+\-*/().^ ]+?)\s*(?:의|$)/); if (m && m[1].trim().length <= 16 && m[2].trim().length <= 16) return balanceFig(m[1].trim().replace(/-/g, '−'), m[2].trim().replace(/-/g, '−')); }
+    if (/^m1-integer/.test(id)) { const m = t.match(/\|\s*(-?\d+)\s*\|/); if (m) return numLineFig([+m[1]]); }
+    if (/^m1-basic-geo/.test(id)) {
+      const ab = t.match(/AB\s*=\s*(\d+(?:\.\d+)?)\s*cm,?\s*BC\s*=\s*(\d+(?:\.\d+)?)/); if (ab) return segFig([['AB', +ab[1]], ['BC', +ab[2]]]);
+      const d = n(/한 각(?:이|의 크기가)?\s*(\d+)\s*°/); if (d && d < 180 && /두 직선/.test(t)) return crossFig(d);
+    }
+    if (/^m1-polygon/.test(id)) {
+      const p = t.match(/(삼|사|오|육|칠|팔|구|십)각형의 내각/); if (p) return regPolyFig(KN[p[1]], false);
+      const r = n(/반지름(?:의 길이)?(?:가|이|은|는)?\s*(\d+(?:\.\d+)?)/); if (r && /원/.test(t)) return circleFig(r, lab(r, unitOf(t)));
+    }
+    if (/^m2-similar/.test(id)) {
+      const m = t.match(/AD\s*=\s*(\d+),\s*DB\s*=\s*(\d+),\s*DE\s*=\s*(\d+)/); if (m && /∥/.test(t)) return triParFig(+m[1], +m[2], +m[3]);
+      const r = t.match(/(\d+)\s*cm,\s*(\d+)\s*cm/) || t.match(/닮음비가?\s*(\d+)\s*:\s*(\d+)/); if (r && +r[1] !== +r[2] && +r[1] <= 30 && +r[2] <= 30) return simTriFig(+r[1], +r[2]);
+    }
+    if (/^m2-simul|^m2-linfunc2/.test(id)) {
+      const ls = ts.split(/,|와 |과 /).map(s => s.replace(/\s[가-힣?].*$/, '').replace(/^[^0-9xy(\-]*/, '').trim()).filter(s => /=/.test(s) && /y/.test(s)).map(linOf).filter(Boolean).slice(0, 2);
+      if (ls.length) { const g = graphFig(ls, 6); if (g) return g; }
+    }
+    if (/^m3-sqrt/.test(id)) { const m = t.match(/√\s*(\d+)/) || t.match(/(\d+)의 제곱근/); if (m && +m[1] <= 400) return sqrtSquareFig(+m[1]); }
+    if (/^m3-factor/.test(id) && /전개/.test(t)) { const m = ts.match(/\(x\s*\+\s*(\d)\)\s*(?:\^2|\(x\s*\+\s*(\d)\))/); if (m) return areaModelFig(+m[1], m[2] ? +m[2] : +m[1]); }
+    if (/^m3-quadeq|^h1-eqs|^h1-quad/.test(id)) {
+      const m = ts.match(/([0-9x+\-*/().^ ]*x\^\d[0-9x+\-*/().^ ]*?)\s*(=|≤|≥|<|>)\s*0(?![.\d])/);
+      if (m) { const f = toFn(m[1]); if (f) { const g = graphFig([f], 6); if (g) return g; } }
+    }
+    if (/^m3-circle/.test(id)) {
+      const am = n(/AM\s*=\s*(\d+)/); if (am && /현/.test(t)) return chordFig({ am: String(am) });
+      const r = n(/반지름이\s*(\d+)/), d = n(/거리가\s*(\d+)/); if (r && d && /현/.test(t)) return chordFig({ r: String(r), d: String(d) });
+      const p = n(/∠APB\s*=\s*(\d+)/); if (p) return twoInscribedFig(p);
+    }
+    if (/^m3-stat/.test(id)) {
+      if (/산점도/.test(t)) return scatterFig(/오른쪽 아래/.test(t) ? -1 : /오른쪽 위/.test(t) ? 1 : 0);
+      const l = t.match(/자료\s*(-?\d+(?:\.\d+)?(?:\s*,\s*-?\d+(?:\.\d+)?){2,9})/); if (l) return barsFig(l[1].split(',').map(Number));
+    }
+    if (/^h1-complex/.test(id)) { const zs = [...ts.matchAll(/(-?\d+)\s*([+-])\s*(\d*)\s*i(?![a-z])/g)].map(m => [+m[1], (m[2] === '-' ? -1 : 1) * (m[3] ? +m[3] : 1)]).slice(0, 3); if (zs.length) return complexFig(zs); }
+    if (/^h1-matrix/.test(id)) {
+      const ms = [...t.matchAll(/(?:([A-Z])\s*=\s*)?\(([-\d\s;]+)\)/g)].filter(m => /\d/.test(m[2]) && (/;/.test(m[2]) || /\d\s+-?\d/.test(m[2]))).map(m => ({ name: m[1], rows: m[2].split(';').map(r => r.trim().split(/\s+/).filter(Boolean)) })).slice(0, 3);
+      if (ms.length) { const g = matrixFig(ms); if (g) return g; }
+    }
+    if (/^h1-counting|^h3-perm|^m2-prob/.test(id)) {
+      const w = t.match(/(?:^|[^A-Za-z])([A-Z]{3,8})(?![A-Za-z])/); if (w) return tilesFig([...w[1]]);
+      const ls = t.match(/(?:^|[^A-Za-z])([A-Z](?:\s*,\s*[A-Z]){2,7})(?![A-Za-z])/); if (ls) return tilesFig(ls[1].split(/\s*,\s*/));
+      const gs = [...t.matchAll(/(셔츠|바지|모자|신발|치마|빵|음료|과일|사탕|책|연필)\s*(\d+)\s*(?:종류|가지|개|권)/g)].map(m => [EMO[m[1]], +m[2], m[1]]); if (gs.length) return iconsFig(gs);
+      const mf = t.match(/남(?:학생)?\s*(\d+)\s*명,\s*여(?:학생)?\s*(\d+)\s*명/); if (mf) return iconsFig([['🧑', +mf[1], '남'], ['👩', +mf[2], '여']]);
+      const p = t.match(/(\d+)\s*명\s*(?:중|을|이|가)/); if (p && +p[1] <= 10) return iconsFig([['🧑', +p[1], '']]);
+    }
+    if (/^h2-trig/.test(id)) {
+      const tri = t.match(/b\s*=\s*(\d+),\s*c\s*=\s*(\d+),\s*A\s*=\s*(\d+)\s*°/); if (tri) return triSASFig(+tri[1], +tri[2], +tri[3]);
+      const q = t.match(/제(1|2|3|4)사분면/); if (q) return unitCircleFig(-45 + 90 * +q[1], 'θ');
+      const d = t.match(/(\d+)\s*°를 호도법/); if (d) return unitCircleFig(+d[1], d[1] + '°');
+      const pr = ts.match(/(\d*)π\s*\/\s*(\d+)/); if (pr) return unitCircleFig((180 * (+pr[1] || 1)) / +pr[2], `${pr[1] || ''}π/${pr[2]}`);
+    }
+    if (/^h2-limit|^h3-series/.test(id)) {
+      const m = ts.match(/lim\s*\(\s*x\s*→\s*(-?\d+|∞)\s*[+-]?\)\s*(.+?)\s*(?:의|$)/); if (m) { const f = toFn(m[2]); if (f) { const g = limitFig(f, m[1] === '∞' ? null : +m[1]); if (g) return g; } }
+      const g = t.match(/등비급수\s*(\d+)\s*\+\s*(\d+)\s*\/\s*(\d+)/); if (g && +g[2] / +g[3] / +g[1] < 1) return geoSeriesFig(+g[2] / +g[3] / +g[1]);
+    }
+    if (/^h2-int|^h3-int2/.test(id)) {
+      const m = ts.match(/∫\s*\(\s*(-?[\d.]+|e)\s*~\s*(-?[\d.]+|e)\s*\)\s*(.+?)\s*dx/); const v = s => (s === 'e' ? Math.E : +s);
+      if (m) { const f = toFn(m[3].replace(/^\((.*)\)$/, '$1')); if (f) { const g = shadedFig(f, v(m[1]), v(m[2])); if (g) return g; } }
+      const c = ts.match(/곡선\s*y\s*=\s*([^가-힣]+?)\s*(?:과|와)\s*(?:직선\s*)?y\s*=\s*([^가-힣]+?)\s*(?:로|으로)/); if (c) { const f1 = toFn(c[1]), f2 = toFn(c[2]); if (f1 && f2) return graphFig([f1, f2], 3); }
+    }
+    if (/^h2-diffapp/.test(id)) { const m = ts.match(/[xhv]\(t\)\s*=\s*([^가-힣(]+?)\s*(?:\(|인|일|의|$)/); if (m) { const f = toFn(m[1].replace(/t/g, 'x')); if (f) return graphFig([f], 5); } }
+    if (/^h1-poly/.test(id)) { const fs = eqs(ts, 'f'); if (fs.length) return graphFig(fs, 4); }
+    if (/^h3-space/.test(id)) { const ps = [...t.matchAll(/\(\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*\)/g)].map(m => [+m[1], +m[2], +m[3]]).slice(0, 2); if (ps.length) return space3dFig(ps); }
+    if (/^h3-vector/.test(id)) { const ps = [...t.matchAll(/([A-Z])\s*\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)/g)].map(m => [+m[2], +m[3]]); if (ps.length) return pointsFig(ps); }
+    if (/^h3-dist/.test(id)) {
+      const ps = [...t.matchAll(/P\(X\s*=\s*(\d+)\)\s*=\s*(\d+)\s*\/\s*(\d+)/g)]; if (ps.length >= 2) return distBarsFig(ps.map(m => +m[2] / +m[3]), ps.map(m => 'X=' + m[1]));
+      const b = t.match(/B\(\s*(\d+)\s*,\s*(\d+(?:\.\d+)?)(?:\s*\/\s*(\d+))?\s*\)/);
+      if (b && +b[1] <= 20) { const N = +b[1], p = b[3] ? +b[2] / +b[3] : +b[2], C = k => { let c = 1; for (let i = 0; i < k; i++) c = (c * (N - i)) / (i + 1); return c; }; return distBarsFig([...Array(N + 1)].map((_, k) => C(k) * p ** k * (1 - p) ** (N - k))); }
+      if (b) return normalFig(null, 1);
+    }
     return '';
   }
 
@@ -424,5 +683,10 @@
     return `<div class="scene"><span class="scene-em">${escA(em)}</span><span class="scene-tx"><b>${escA(s.place || s.title)}</b><small>🤖 ${escA(lc.ai || s.ai || '')} · 🙋 ${escA(s.user || '')}</small></span></div>`;
   }
 
-  window.LPfig = { math, talkScene, plain };
+  /* ───────── 역사 연표 ───────── */
+  function timeline(items) {
+    return `<ol class="tl">${items.map(([y, e]) => `<li><b>${escA(y)}</b><span>${escA(e)}</span></li>`).join('')}</ol>`;
+  }
+
+  window.LPfig = { math, talkScene, plain, timeline };
 })();
