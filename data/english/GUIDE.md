@@ -97,3 +97,30 @@ ENG.vocab('m1', '단어: 학교와 교실', {
 - 대본은 자연스러운 구어체, 새로 쓴 것. 화자는 'M' / 'W' (내레이션은 'M' 또는 'W' 한 명). 숫자·시간·가격은 읽기 쉽게(예: 'fifteen dollars', '3:30').
 - 기계 음성이 읽으므로 약어·기호·이모지는 대본에 쓰지 말 것. 한 문제 대본: 중1 2~4줄, 고3 6~10줄.
 - 모든 문제에 `audio`가 있어야 한다(개념 칸 `ex` 예문에도 🔊가 붙는다).
+
+---
+
+# 숙어 단원 (idiom-*.js)
+
+단어 단원과 같은 형식이지만 `ENG.idiom(...)`을 부르고 제목은 `'숙어: …'`로 시작한다. 단원마다 정확히 24개.
+
+```js
+ENG.idiom('m3', '숙어: 비유 표현 기초', {
+  sub: '한 줄 설명', kw: ['piece of cake', '...'],
+  words: [
+    { w: 'piece of cake', pos: 'phr', ko: '아주 쉬운 일', lit: '케이크 한 조각', em: '🍰', mv: 'bounce',
+      sc: '📝😀👍', def: 'something that is very easy to do',
+      ex: ['The math test was a piece of cake.', '수학 시험은 식은 죽 먹기였어.'], form: '', syn: 'easy task', ant: '' },
+  ],
+});
+```
+
+- `w` 숙어 원형(look forward to, be good at, give up, break the ice …). `pos`는 'phr'(구동사는 'v'도 가능).
+- `lit` **그림 그대로의 뜻**(낱말을 하나씩 옮긴 우리말). 그림(em)과 장면(sc)은 *그림 그대로의 모습*에서 *진짜 뜻*으로 이어지게 고른다.
+  예: break the ice — lit '얼음을 깨다', em 🧊, mv 'shake', sc '🧊🔨😊🗣️'(얼음을 깨니 모두 웃으며 이야기).
+  글자 그대로의 뜻이 곧 진짜 뜻인 숙어(get up 등)는 lit에 그 낱말 풀이를 쓴다.
+- `mv` **대표 그림의 움직임**: float(둥실) · bounce(통통) · shake(흔들) · spin(빙글) · grow(커짐) · shrink(작아짐) · slide(좌우로) · fall(떨어짐) · rise(올라감) · pulse(두근) · swing(그네) · flip(뒤집기) 중 뜻에 맞는 것.
+  (give up 🏳️ swing, fall asleep 😴 fall, cheer up 😊 rise, turn down 👎 flip, put off ⏰ slide …) 단어 단원에도 `mv`를 넣을 수 있다(없으면 float).
+- `form` 예문 속 숙어 모양이 원형과 다를 때 그 모양(예: w 'look after', 예문 'She looked after her brother.' → form 'looked after'). 같으면 ''.
+  예문에 `form`(없으면 `w`)이 정확히 한 번 들어가야 한다(빈칸 문제).
+- `def`는 숙어 자체를 쓰지 않은 쉬운 영영 풀이. 같은 학년의 단어 단원(vocab-*.js)에 이미 있는 숙어는 넣지 않는다.

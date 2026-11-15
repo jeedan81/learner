@@ -199,3 +199,37 @@ body{background:var(--paper)}
 /* 단어 장면 그림(sc): 대표 그림 아래 작은 상황 그림 */
 .vsc{font-size:22px;line-height:1.3;letter-spacing:2px;padding:4px 6px;border-radius:999px;background:var(--soft);justify-self:center;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:clip}
 .vsc.big{display:table;margin:2px auto 8px;font-size:30px;padding:6px 14px}
+
+/* 움직이는 그림: 대표 그림은 뜻에 맞게 움직이고(mv-*), 장면은 하나씩 차례로 나타난다 */
+.vem,.vpic{display:inline-block;justify-self:center;will-change:transform}
+.vpic{display:table;margin:10px auto 4px}
+.mv-float{animation:mvFloat 3s ease-in-out infinite}
+.mv-bounce{animation:mvBounce 1.4s cubic-bezier(.3,0,.5,1) infinite}
+.mv-shake{animation:mvShake 1.6s ease-in-out infinite}
+.mv-spin{animation:mvSpin 3s linear infinite}
+.mv-grow{animation:mvGrow 2.4s ease-in-out infinite}
+.mv-shrink{animation:mvShrink 2.4s ease-in-out infinite}
+.mv-slide{animation:mvSlide 2.4s ease-in-out infinite}
+.mv-fall{animation:mvFall 2.2s ease-in infinite}
+.mv-rise{animation:mvRise 2.4s ease-out infinite}
+.mv-pulse{animation:mvPulse 1.2s ease-in-out infinite}
+.mv-swing{animation:mvSwing 2s ease-in-out infinite;transform-origin:50% 0}
+.mv-flip{animation:mvFlip 2.6s ease-in-out infinite}
+@keyframes mvFloat{50%{transform:translateY(-6px)}}
+@keyframes mvBounce{0%,100%{transform:translateY(0) scale(1,1)}40%{transform:translateY(-16px) scale(.95,1.05)}55%{transform:translateY(0) scale(1.08,.92)}}
+@keyframes mvShake{0%,60%,100%{transform:translateX(0) rotate(0)}10%,30%,50%{transform:translateX(-5px) rotate(-6deg)}20%,40%{transform:translateX(5px) rotate(6deg)}}
+@keyframes mvSpin{to{transform:rotate(360deg)}}
+@keyframes mvGrow{0%,100%{transform:scale(.8)}50%{transform:scale(1.2)}}
+@keyframes mvShrink{0%,100%{transform:scale(1.15)}50%{transform:scale(.7)}}
+@keyframes mvSlide{0%,100%{transform:translateX(-14px)}50%{transform:translateX(14px)}}
+@keyframes mvFall{0%{transform:translateY(-14px) rotate(0);opacity:0}20%{opacity:1}80%{transform:translateY(10px) rotate(12deg);opacity:1}100%{transform:translateY(14px) rotate(14deg);opacity:0}}
+@keyframes mvRise{0%{transform:translateY(14px);opacity:0}25%{opacity:1}80%{transform:translateY(-10px);opacity:1}100%{transform:translateY(-14px);opacity:0}}
+@keyframes mvPulse{0%,100%{transform:scale(1)}25%{transform:scale(1.15)}45%{transform:scale(1)}60%{transform:scale(1.1)}}
+@keyframes mvSwing{0%,100%{transform:rotate(-12deg)}50%{transform:rotate(12deg)}}
+@keyframes mvFlip{0%,40%{transform:scaleX(1)}50%,90%{transform:scaleX(-1)}100%{transform:scaleX(1)}}
+.vsc span{display:inline-block;opacity:0;animation:scPop 4.2s ease-out infinite;animation-delay:calc(var(--i) * .5s)}
+.vsc.big span{animation-duration:4.6s}
+@keyframes scPop{0%{opacity:0;transform:translateY(8px) scale(.5)}10%{opacity:1;transform:translateY(-3px) scale(1.15)}16%{transform:none}78%{opacity:1;transform:none}92%,100%{opacity:0;transform:scale(.9)}}
+.vlit{font-size:12px;color:var(--muted);background:var(--soft);border-radius:8px;padding:3px 8px;justify-self:center}
+.vhide .vcard:not(.open) .vlit{filter:blur(7px);opacity:.55}
+@media (prefers-reduced-motion:reduce){[class*="mv-"],.vsc span{animation:none!important;opacity:1!important;transform:none!important}}

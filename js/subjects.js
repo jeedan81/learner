@@ -182,8 +182,8 @@
     ['m3', '중3', '중학교 3학년 영어', '#e07a12', '관계사·분사·가정법과 요지·빈칸'], ['h1', '고1', '고등학교 1학년 영어', '#d9480f', '모의고사 대비: 어법·어휘·유형 독해'],
     ['h2', '고2', '고등학교 2학년 영어', '#2b6cb0', '특수 구문과 추론형 독해'], ['h3', '고3', '고3 · 수능 영어', '#7048c8', '수능 유형별 실전']];
   // 영어 자료 파일은 ENG.add(문법·독해 단원), ENG.vocab(단어 단원)을 부른다. 두 과목이 동시에 불러와도 섞이지 않게 한 번만 정한다
-  const engContent = [], engVocab = [];
-  const ENG_PARTS = [['grammar', '문법', '✏️'], ['vocab', '단어', '🖼️'], ['reading', '독해', '📖'], ['listening', '듣기', '🎧']];
+  const engContent = [], engVocab = [], engIdiom = [];
+  const ENG_PARTS = [['grammar', '문법', '✏️'], ['vocab', '단어', '🖼️'], ['idiom', '숙어', '💬'], ['reading', '독해', '📖'], ['listening', '듣기', '🎧']];
   // 듣기 문제(audio: [[화자, 대사], …]): 문제에는 재생 버튼만, 대본은 답한 뒤 해설에서 보여 준다
   const engQ = q => {
     if (!q.audio) return { ...q };
@@ -193,20 +193,21 @@
   };
   // 단원 제목으로 파트를 정한다: 어휘 단원은 단어 파트, 독해 유형은 독해 파트, 나머지는 문법
   const engPart = u => (/^듣기/.test(u) ? 'listening' : /어휘/.test(u) ? 'vocab' : /^독해|빈칸|순서|삽입|주제|요지|함축|도표|장문/.test(u) ? 'reading' : 'grammar');
-  window.ENG = { add: (g, u, d) => engContent.push([g, u, d]), vocab: (g, u, d) => engVocab.push([g, u, d]) };
+  window.ENG = { add: (g, u, d) => engContent.push([g, u, d]), vocab: (g, u, d) => engVocab.push([g, u, d]), idiom: (g, u, d) => engIdiom.push([g, u, d]) };
   LP.subject({
     id: 'english', name: '영어', emoji: '📘', color: '#1d4ed8', mascot: 'A+', desc: '중1~고3 · 문법 · 단어(그림 카드) · 독해 (내신·수능)',
     // 단원 번호(key)가 파일 순서로 정해지므로 새 파일은 항상 맨 뒤에 붙인다
-    files: ['content-m12', 'content-m3h1', 'content-h2', 'content-h3', 'content-read-m12', 'content-read-m3', 'content-gram-add', 'content-read-h1', 'content-listen', 'vocab-m12', 'vocab-m3h1', 'vocab-h23'].map(f => `data/english/${f}.js`),
+    files: ['content-m12', 'content-m3h1', 'content-h2', 'content-h3', 'content-read-m12', 'content-read-m3', 'content-gram-add', 'content-read-h1', 'content-listen', 'vocab-m12', 'vocab-m3h1', 'vocab-h23', 'idiom-m12', 'idiom-m3h1', 'idiom-h23'].map(f => `data/english/${f}.js`),
     build() {
       for (const [id, short, name, color, desc] of ENG_GRADES) {
         // 학년 안을 문법 · 단어 · 독해 세 파트로 나눠 보여 준다(단원 key는 그대로: 문법·독해 english/학년-번호, 단어 english/학년-v번호)
         const units = engContent.filter(c => c[0] === id).map(([, u, d], i) => ({ u, d, key: `english/${id}-${i + 1}`, cat: engPart(u) }));
         const vocab = engVocab.filter(c => c[0] === id).map(([, u, d], i) => ({ u: u.replace(/^단어:\s*/, ''), d, key: `english/${id}-v${i + 1}`, cat: 'vocab' }));
-        const all = [...units, ...vocab], n = c => all.filter(x => x.cat === c).length;
+        const idioms = engIdiom.filter(c => c[0] === id).map(([, u, d], i) => ({ u: u.replace(/^숙어:\s*/, ''), d, key: `english/${id}-i${i + 1}`, cat: 'idiom' }));
+        const all = [...units, ...vocab, ...idioms], n = c => all.filter(x => x.cat === c).length;
         LP.addGrade('english', { id, short, name, color, desc, cats: ENG_PARTS.map(([c, nm, em]) => ({ id: c, name: `${nm} ${n(c)}`, emoji: em })) });
         for (const [c] of ENG_PARTS) for (const x of all.filter(y => y.cat === c)) {
-          if (x.d.words) { LP.addTopic('english', id, { key: x.key, cat: c, title: x.u, sub: `${x.d.sub} · ${x.d.words.length}단어`, kw: x.d.kw, sections: vocabSections(x.u, x.d.words), bank: vocabBank(x.key, x.d.words) }); continue; }
+          if (x.d.words) { const kind = c === 'idiom' ? '숙어' : '단어'; LP.addTopic('english', id, { key: x.key, cat: c, title: x.u, sub: `${x.d.sub} · ${x.d.words.length}${kind === '숙어' ? '개 숙어' : '단어'}`, kw: x.d.kw, sections: vocabSections(x.u, x.d.words, kind), bank: vocabBank(x.key, x.d.words, kind) }); continue; }
           // 예문(ex)은 🔊 듣기 버튼이 붙은 목록으로
           const sections = x.d.sections.map(sec => (sec.ex ? { ...sec, html: (sec.html || '') + `<div class="phr">${sec.ex.map(([en, ko]) => `<div class="pr">${say(en, 'en')}<div><b>${esc(en)}</b><span>${esc(ko)}</span></div></div>`).join('')}</div>` } : sec));
           LP.addTopic('english', id, { key: x.key, cat: c, title: x.u.replace(/^(독해|듣기):\s*/, ''), sub: x.d.sub, kw: x.d.kw, sections, bank: x.d.bank.map(engQ) });
@@ -219,34 +220,43 @@
   });
 
   const POS = { n: '명사', v: '동사', adj: '형용사', adv: '부사', prep: '전치사', conj: '접속사', phr: '숙어' };
-  // 그림: 대표 그림(em) + 뜻을 보여 주는 작은 장면(sc, 이모지 2~4개로 상황을 그린 것)
-  const vscene = x => (x.sc ? `<div class="vsc">${esc(x.sc)}</div>` : '');
-  const vcard = x => `<div class="vcard"><div class="vem">${x.em || '🔤'}</div>${vscene(x)}<div class="vw">${say(x.w, 'en')}<b>${esc(x.w)}</b><small>${POS[x.pos] || esc(x.pos)}</small></div><div class="vko">${esc(x.ko)}</div>`
+  // 움직이는 그림: 대표 그림(em)은 뜻에 맞는 움직임(mv), 장면(sc)은 이모지가 하나씩 차례로 나타났다가 다시 반복된다
+  const MOVES = ['float', 'bounce', 'shake', 'spin', 'grow', 'shrink', 'slide', 'fall', 'rise', 'pulse', 'swing', 'flip'];
+  const mvOf = x => (MOVES.includes(x.mv) ? x.mv : 'float');
+  const graphemes = s => (window.Intl && Intl.Segmenter ? [...new Intl.Segmenter('en', { granularity: 'grapheme' }).segment(s)].map(g => g.segment) : Array.from(s)).filter(g => g.trim());
+  const vscene = (x, big) => (x.sc ? `<div class="vsc${big ? ' big' : ''}">${graphemes(x.sc).map((g, i) => `<span style="--i:${i}">${esc(g)}</span>`).join('')}</div>` : '');
+  const vpicOf = (x, cls) => `<div class="${cls} mv-${mvOf(x)}">${x.em || '🔤'}</div>`;
+  const vcard = x => `<div class="vcard">${vpicOf(x, 'vem')}${vscene(x)}<div class="vw">${say(x.w, 'en')}<b>${esc(x.w)}</b><small>${POS[x.pos] || esc(x.pos)}</small></div><div class="vko">${esc(x.ko)}</div>`
+    + (x.lit ? `<div class="vlit">🖼️ 그림 그대로: ${esc(x.lit)}</div>` : '')
     + `<div class="vex">${esc(x.ex[0])}<small>${esc(x.ex[1])}</small></div>${x.syn || x.ant ? `<div class="vsa">${x.syn ? `<span>≈ ${esc(x.syn)}</span>` : ''}${x.ant ? `<span>↔ ${esc(x.ant)}</span>` : ''}</div>` : ''}</div>`;
-  function vocabSections(u, words) {
+  // kind: '단어' 또는 '숙어'
+  function vocabSections(u, words, kind = '단어') {
     const name = u, per = Math.ceil(words.length / 3), out = [];
+    const first = kind === '숙어' ? '숙어는 낱말 뜻을 더해도 뜻이 안 나올 때가 많아요. 움직이는 그림이 무엇을 보여 주는지 보고 뜻을 떠올린 뒤, 🔊로 듣고 예문을 소리 내어 읽어 보세요.' : '그림을 먼저 보고 뜻을 떠올린 뒤, 🔊를 눌러 발음을 듣고 예문을 소리 내어 읽어 보세요.';
     for (let k = 0; k * per < words.length; k++) {
       const part = words.slice(k * per, (k + 1) * per);
-      out.push({ h: `${name} ${'①②③④'[k]} (${k * per + 1}~${k * per + part.length})`, p: k === 0 ? '그림을 먼저 보고 뜻을 떠올린 뒤, 🔊를 눌러 발음을 듣고 예문을 소리 내어 읽어 보세요.' : '그림 → 단어 → 뜻 → 예문 순서로 익혀요.',
-        html: `<div class="vbar"><button class="btn small vhide-toggle" type="button"></button><span class="hint">그림과 단어를 보고 뜻을 떠올린 뒤, 카드를 눌러 확인해요.</span></div><div class="vcards">${part.map(vcard).join('')}</div>` });
+      out.push({ h: `${name} ${'①②③④'[k]} (${k * per + 1}~${k * per + part.length})`, p: k === 0 ? first : `그림 → ${kind} → 뜻 → 예문 순서로 익혀요.`,
+        html: `<div class="vbar"><button class="btn small vhide-toggle" type="button"></button><span class="hint">그림과 ${kind}를 보고 뜻을 떠올린 뒤, 카드를 눌러 확인해요.</span></div><div class="vcards">${part.map(vcard).join('')}</div>` });
     }
-    out.push({ h: '한눈에 정리', p: '모르는 단어는 위로 돌아가 카드를 한 번 더 보고 문제로 넘어가요.', table: { head: ['그림', '단어', '뜻'], rows: words.map(x => [`<span class="vtem">${x.em || ''}</span>`, `<b>${esc(x.w)}</b> <small>${POS[x.pos] || ''}</small>`, esc(x.ko)]) } });
+    out.push({ h: '한눈에 정리', p: `모르는 ${kind}는 위로 돌아가 카드를 한 번 더 보고 문제로 넘어가요.`, table: { head: ['그림', kind, '뜻'], rows: words.map(x => [`<span class="vtem">${x.em || ''}</span>`, `<b>${esc(x.w)}</b> <small>${POS[x.pos] || ''}</small>`, esc(x.ko)]) } });
     return out;
   }
-  // 단어마다 5가지 문제: 그림→단어(그림 없으면 단어→뜻) · 뜻→단어 · 예문 빈칸 · 듣고 뜻 · 영영 풀이
-  function vocabBank(key, words) {
+  // 낱말마다 5가지 문제: 그림→낱말(그림 없으면 낱말→뜻) · 뜻→낱말 · 예문 빈칸 · 듣고 뜻 · 영영 풀이
+  // 예문 속 모양이 원형과 다르면(숙어 looked after 등) form에 그 모양을 적어 두고 빈칸으로 쓴다
+  function vocabBank(key, words, kind = '단어') {
     const bank = [];
     const others = (x, f, seed, pool = words) => { const r = seeded(seed), cand = pool.filter(y => y !== x && f(y) && f(y) !== f(x)); const out = []; while (out.length < 3 && cand.length) { const v = f(cand.splice(Math.floor(r() * cand.length), 1)[0]); if (!out.includes(v)) out.push(v); } return out; };
     const ask = (lv, q, right, wrong, why, seed) => { if (wrong.length < 3) return; const m = mix([right, ...wrong], 0, seed); bank.push({ lv, q, o: m.o.map(esc), a: m.a, why }); };
+    const rx = s => new RegExp('(^|[^A-Za-z])(' + s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')(?![A-Za-z])', 'i');
     words.forEach((x, i) => {
-      const seed = key + i, why = `<b>${esc(x.w)}</b> (${POS[x.pos] || x.pos}) ${esc(x.ko)}<br>${esc(x.ex[0])} — ${esc(x.ex[1])}`;
-      if (x.em) ask(1, `그림이 나타내는 단어는?<div class="vpic">${x.em}</div>${vscene(x).replace('class="vsc"', 'class="vsc big"')}`, x.w, others(x, y => y.w, seed + 'a', words.filter(y => y.em)), why, seed + 'a1');
-      else ask(1, `다음 단어의 뜻은?<div class="big">${say(x.w, 'en')} ${esc(x.w)}</div>`, x.ko, others(x, y => y.ko, seed + 'a'), why, seed + 'a1');
-      ask(2, `‘${esc(x.ko)}’에 알맞은 영어 단어는?`, x.w, others(x, y => y.w, seed + 'b'), why, seed + 'b1');
-      const re = new RegExp('(^|[^A-Za-z])(' + x.w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')(?![A-Za-z])', 'i');
-      if (re.test(x.ex[0])) ask(3, `빈칸에 알맞은 단어는?<div class="big">${esc(x.ex[0].replace(re, '$1＿＿＿'))}</div><small>(${esc(x.ex[1])})</small>`, x.w, others(x, y => y.w, seed + 'c', words.filter(y => y.pos === x.pos).length > 4 ? words.filter(y => y.pos === x.pos) : words), why, seed + 'c1');
-      ask(4, `🔊를 눌러 잘 듣고, 들은 단어의 뜻을 고르세요.<div class="big">${say(x.w, 'en')} <span class="muted">듣기</span></div>`, x.ko, others(x, y => y.ko, seed + 'd'), why, seed + 'd1');
-      ask(5, `다음 영영 풀이에 알맞은 단어는?<div class="passage">${esc(x.def)}</div>`, x.w, others(x, y => y.w, seed + 'e'), why, seed + 'e1');
+      const seed = key + i, why = `<b>${esc(x.w)}</b> (${POS[x.pos] || x.pos}) ${esc(x.ko)}${x.lit ? ` · 그림 그대로: ${esc(x.lit)}` : ''}<br>${esc(x.ex[0])} — ${esc(x.ex[1])}`;
+      if (x.em) ask(1, `그림이 나타내는 ${kind}는?${vpicOf(x, 'vpic')}${vscene(x, true)}`, x.w, others(x, y => y.w, seed + 'a', words.filter(y => y.em)), why, seed + 'a1');
+      else ask(1, `다음 ${kind}의 뜻은?<div class="big">${say(x.w, 'en')} ${esc(x.w)}</div>`, x.ko, others(x, y => y.ko, seed + 'a'), why, seed + 'a1');
+      ask(2, `‘${esc(x.ko)}’에 알맞은 영어 ${kind}는?`, x.w, others(x, y => y.w, seed + 'b'), why, seed + 'b1');
+      const shown = x.form || x.w, re = rx(shown);
+      if (re.test(x.ex[0])) { const f = y => y.form || y.w, pool = words.filter(y => y.pos === x.pos).length > 4 ? words.filter(y => y.pos === x.pos) : words; ask(3, `빈칸에 알맞은 말은?<div class="big">${esc(x.ex[0].replace(re, '$1＿＿＿'))}</div><small>(${esc(x.ex[1])})</small>`, shown, others(x, f, seed + 'c', pool), why, seed + 'c1'); }
+      ask(4, `🔊를 눌러 잘 듣고, 들은 ${kind}의 뜻을 고르세요.<div class="big">${say(x.w, 'en')} <span class="muted">듣기</span></div>`, x.ko, others(x, y => y.ko, seed + 'd'), why, seed + 'd1');
+      ask(5, `다음 영영 풀이에 알맞은 ${kind}는?<div class="passage">${esc(x.def)}</div>`, x.w, others(x, y => y.w, seed + 'e'), why, seed + 'e1');
     });
     return bank;
   }
