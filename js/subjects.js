@@ -219,7 +219,9 @@
   });
 
   const POS = { n: '명사', v: '동사', adj: '형용사', adv: '부사', prep: '전치사', conj: '접속사', phr: '숙어' };
-  const vcard = x => `<div class="vcard"><div class="vem">${x.em || '🔤'}</div><div class="vw">${say(x.w, 'en')}<b>${esc(x.w)}</b><small>${POS[x.pos] || esc(x.pos)}</small></div><div class="vko">${esc(x.ko)}</div>`
+  // 그림: 대표 그림(em) + 뜻을 보여 주는 작은 장면(sc, 이모지 2~4개로 상황을 그린 것)
+  const vscene = x => (x.sc ? `<div class="vsc">${esc(x.sc)}</div>` : '');
+  const vcard = x => `<div class="vcard"><div class="vem">${x.em || '🔤'}</div>${vscene(x)}<div class="vw">${say(x.w, 'en')}<b>${esc(x.w)}</b><small>${POS[x.pos] || esc(x.pos)}</small></div><div class="vko">${esc(x.ko)}</div>`
     + `<div class="vex">${esc(x.ex[0])}<small>${esc(x.ex[1])}</small></div>${x.syn || x.ant ? `<div class="vsa">${x.syn ? `<span>≈ ${esc(x.syn)}</span>` : ''}${x.ant ? `<span>↔ ${esc(x.ant)}</span>` : ''}</div>` : ''}</div>`;
   function vocabSections(u, words) {
     const name = u, per = Math.ceil(words.length / 3), out = [];
@@ -238,7 +240,7 @@
     const ask = (lv, q, right, wrong, why, seed) => { if (wrong.length < 3) return; const m = mix([right, ...wrong], 0, seed); bank.push({ lv, q, o: m.o.map(esc), a: m.a, why }); };
     words.forEach((x, i) => {
       const seed = key + i, why = `<b>${esc(x.w)}</b> (${POS[x.pos] || x.pos}) ${esc(x.ko)}<br>${esc(x.ex[0])} — ${esc(x.ex[1])}`;
-      if (x.em) ask(1, `그림이 나타내는 단어는?<div class="vpic">${x.em}</div>`, x.w, others(x, y => y.w, seed + 'a', words.filter(y => y.em)), why, seed + 'a1');
+      if (x.em) ask(1, `그림이 나타내는 단어는?<div class="vpic">${x.em}</div>${vscene(x).replace('class="vsc"', 'class="vsc big"')}`, x.w, others(x, y => y.w, seed + 'a', words.filter(y => y.em)), why, seed + 'a1');
       else ask(1, `다음 단어의 뜻은?<div class="big">${say(x.w, 'en')} ${esc(x.w)}</div>`, x.ko, others(x, y => y.ko, seed + 'a'), why, seed + 'a1');
       ask(2, `‘${esc(x.ko)}’에 알맞은 영어 단어는?`, x.w, others(x, y => y.w, seed + 'b'), why, seed + 'b1');
       const re = new RegExp('(^|[^A-Za-z])(' + x.w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')(?![A-Za-z])', 'i');

@@ -20,11 +20,16 @@ for (const f of process.argv.slice(2)) {
       const n = (x.ex[0].match(re) || []).length; if (n !== 1) err(t + `: 예문에 단어 원형이 ${n}번 (정확히 1번)`);
       if (new RegExp('(^|[^a-z])' + x.w.toLowerCase() + '(?![a-z])', 'i').test(x.def)) err(t + ': 영영 풀이에 단어 자체가 들어감');
       if (x.em) { if (ems[x.em]) err(t + `: 그림 ${x.em} 중복 (${ems[x.em]})`); ems[x.em] = x.w; }
+      if (x.sc != null) {
+        if (/[A-Za-z0-9가-힣]/.test(x.sc)) err(t + ': 장면 그림(sc)에 글자·숫자가 들어감');
+        if ([...x.sc.matchAll(/\p{Extended_Pictographic}/gu)].length < 2) err(t + ': 장면 그림(sc)은 이모지 2개 이상');
+        if (ems['sc:' + x.sc]) err(t + `: 장면 그림 중복 (${ems['sc:' + x.sc]})`); ems['sc:' + x.sc] = x.w;
+      }
     });
   }
   if (vocab.length) {
-    const all = vocab.flatMap(v => v.d.words || []), withEm = all.filter(x => x.em).length;
-    console.log(f, `단어 단원 ${vocab.length}개, 단어 ${all.length}개, 그림 ${withEm}개(${Math.round((100 * withEm) / (all.length || 1))}%)`);
+    const all = vocab.flatMap(v => v.d.words || []), withEm = all.filter(x => x.em).length, withSc = all.filter(x => x.sc).length;
+    console.log(f, `단어 단원 ${vocab.length}개, 단어 ${all.length}개, 그림 ${withEm}개(${Math.round((100 * withEm) / (all.length || 1))}%), 장면 그림 ${withSc}개`);
   }
   const pos = [0, 0, 0, 0];
   for (const { g, u, d } of units) {

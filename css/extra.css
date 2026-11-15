@@ -196,3 +196,6 @@ body{background:var(--paper)}
 .big.listen .say{width:52px;height:52px;font-size:24px}
 .script{margin-top:8px;padding:8px 10px;border-radius:8px;background:var(--soft);font-size:13.5px;line-height:1.6;font-family:Georgia,"Times New Roman",var(--f-body)}
 .script b{display:inline-block;min-width:22px;color:var(--gc,var(--accent));font-family:var(--f-body)}
+/* 단어 장면 그림(sc): 대표 그림 아래 작은 상황 그림 */
+.vsc{font-size:22px;line-height:1.3;letter-spacing:2px;padding:4px 6px;border-radius:999px;background:var(--soft);justify-self:center;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:clip}
+.vsc.big{display:table;margin:2px auto 8px;font-size:30px;padding:6px 14px}
